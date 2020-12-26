@@ -3,7 +3,9 @@ Gem::Specification.new do |s|
 	s.version		= '0.0.0'
 	s.license		= 'GPL-2.0-or-later'
 	s.author		= 'AlexieVQ'
-	s.files			= ['lib/rand_text_core.rb']
+	s.files			= [
+		'lib/rand_text_core.rb'
+	]
 	s.summary		= 'Core for writing random text generators in Ruby.'
 	s.description	= 'RandTextCore provides classes to create a random text
 					   generator in Ruby using patterns and sentences stored in
@@ -12,4 +14,7 @@ Gem::Specification.new do |s|
 	s.metadata		= {
 		'source_code_uri' => 'https://github.com/AlexieVQ/rand_text_core'
 	}
+	s.test_files	= [
+		'test/test_rand_text_core.rb'
+	]
 end
