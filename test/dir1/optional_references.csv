@@ -1,0 +1,5 @@
+id;value;simple_entity
+1;ref to simple_entity 2;2
+2;ref to simple_entity 4;4
+3;no ref;
+4;ref to simple_entity 1;1
