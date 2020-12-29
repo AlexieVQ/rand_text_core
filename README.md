@@ -26,7 +26,7 @@ That means the following Tracery grammar:
         "rule 1 variant 1",
         "rule 1 variant 2",
         "rule 1 variant 3"
- ],
+    ],
 
     "rule2": [
         "rule 2 variant 1",
