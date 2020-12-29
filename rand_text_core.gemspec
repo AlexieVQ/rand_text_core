@@ -16,6 +16,7 @@ Gem::Specification.new do |s|
 		'source_code_uri' => 'https://github.com/AlexieVQ/rand_text_core'
 	}
 	s.test_files	= [
-		'test/test_rand_text_core.rb'
+		'test/test_rand_text_core.rb',
+		'test/test_variant.rb'
 	]
 end
