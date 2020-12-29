@@ -38,7 +38,7 @@ class RandTextCore::Variant
 	#  
 	#  MyRule.rule_name	#=> 'my_rule'
 	def self.rule_name
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "class Variant does not represent any rule"
 		end
 		unless @rule_name
@@ -59,7 +59,7 @@ class RandTextCore::Variant
 	#  
 	#  MyRule.picker_name	#=> 'MyRule'
 	def self.picker_name
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "class Variant does not represent any rule"
 		end
 		unless @picker_name
@@ -73,7 +73,7 @@ class RandTextCore::Variant
 	# @raise [RuntimeError] called on Variant, or file path not set with
 	#  {Variant#file_path}
 	def self.file
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "class Variant does not represent any rule"
 		end
 		unless @file
@@ -93,7 +93,7 @@ class RandTextCore::Variant
 	#  file
 	# @raise [RuntimeError] called on Variant, or called multiple time
 	def self.file_path(path)
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "cannot set file path for class Variant"
 		end
 		if @file
@@ -121,7 +121,7 @@ class RandTextCore::Variant
 	# @raise [TypeError] no implicit conversion for arguments into String
 	# @raise [RuntimeError] called on Variant
 	def self.reference(attribute, rule_name)
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "cannot set reference for class Variant"
 		end
 		@references ||= {}
@@ -147,7 +147,7 @@ class RandTextCore::Variant
 	#  names of the rules they reference (frozen)
 	# @raise [RuntimeError] called on Variant
 	def self.references
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "class Variant has no references"
 		end
 		@references ||= {}
@@ -214,7 +214,7 @@ class RandTextCore::Variant
 	#  associating attributes' names to their type
 	# @raise [RuntimeError] called on Variant, or attributes' types not yet set
 	def self.attr_types
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "class Variant has no attributes"
 		end
 		unless @attr_types
@@ -251,11 +251,19 @@ class RandTextCore::Variant
 			self.attr_types = row.headers unless @attr_types
 			self.add_entity(row)
 		end
-		self.freeze
 		@initialized = true
+		self.freeze
 		self
 	end
 	private_class_method :import
+
+	# Tests whether the class is initialized or not, i.e. all its data have been
+	# imported, and no more modification can be done.
+	# @return [true, false] +true+ if the class has been initialized, +false+
+	#  otherwise
+	def self.initialized?
+		@initialized || false
+	end
 
 	# Prevents further modifications to the class.
 	# @return [self]
@@ -288,7 +296,7 @@ class RandTextCore::Variant
 	#  enumerator on the variants of the rule
 	# @raise [RuntimeError] called on Variant or class not initialized
 	def self.each
-		if self == Variant
+		if self == RandTextCore::Variant
 			raise "class Variant has no data"
 		end
 		unless self.initialized?
@@ -335,7 +343,7 @@ class RandTextCore::Variant
 	# @param [CSV::Row] row row from the CSV file.
 	# @raise [ArgumentError] invalid row
 	def initialize(row)
-		types = self.class.attr_types
+		types = self.class.send(:attr_types)
 		unless row.length == types.length
 			raise ArgumentError,
 				"wrong number of attributes (given #{row.length}, " +
