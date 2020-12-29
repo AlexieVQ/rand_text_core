@@ -11,8 +11,8 @@ class TestRandTextCore < Test::Unit::TestCase
 	FILES = [
 		'optional_references.csv',
 		'required_references.csv',
-		'simple_entities.csv',
-		'weighted_entities.csv'
+		'simple_rule.csv',
+		'weighted_rule.csv'
 	]
 
 	def test_files_no_slash
