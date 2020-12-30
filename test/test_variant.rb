@@ -79,6 +79,53 @@ class TestVariant < Test::Unit::TestCase
 		)
 	end
 
+	def test_unset_file_path
+			klass = Class.new(RandTextCore::Variant)
+		assert_raise(RuntimeError) { klass.file }
+		assert_raise(RuntimeError) { klass.rule_name }
+		assert_raise(RuntimeError) { klass.picker_name }
+	end
+
+	def test_reset_file_path
+		assert_raise(RuntimeError) do
+			@simple_rule.file_path(TEST_DIR + 'weighted_rule.csv')
+		end
+	end
+
+	def test_wrong_argument_type
+		assert_raise(TypeError) do
+			Class.new(RandTextCore::Variant) do
+				file_path 3
+			end
+		end
+		assert_raise(TypeError) do
+			Class.new(RandTextCore::Variant) do
+				file_path TEST_DIR + 'required_references.csv'
+				reference 4, 'simple_rule'
+			end
+		end
+		assert_raise(TypeError) do
+			Class.new(RandTextCore::Variant) do
+				file_path TEST_DIR + 'required_references.csv'
+				reference 'simple_rule', 5
+			end
+		end
+		assert_raise(TypeError) do
+			@simple_rule.send(:import)
+			@simple_rule[:key]
+		end
+		assert_raise(TypeError) do
+			@weighted_rule.send(:rules=, @rules_dir1)
+			@weighted_rule.send(:import)
+			@weighted_rule.rule(3)
+		end
+		assert_raise(TypeError) do
+			@required_references.send(:rules=, @rules_dir1)
+			@required_references.send(:import)
+			@required_references[1].rule(4)
+		end
+	end
+
 	def test_references
 		assert_equal({}, @simple_rule.references)
 		assert_equal({}, @weighted_rule.references)
@@ -115,6 +162,10 @@ class TestVariant < Test::Unit::TestCase
 		)
 	end
 
+	def test_unset_attr_types
+		assert_raise(RuntimeError) { @simple_rule.send(:attr_types) }
+	end
+
 	def test_import
 		@simple_rule.send(:import)
 		@weighted_rule.send(:import)
@@ -139,6 +190,10 @@ class TestVariant < Test::Unit::TestCase
 		assert_equal(4, i)
 	end
 
+	def test_unitialized_each
+		assert_raise(RuntimeError) { @simple_rule.each }
+	end
+
 	def test_rules
 		@rules_dir1.each { |rule| rule.send(:rules=, @rules_dir1 ) }
 		@rules_dir1.each do |rule|
@@ -147,6 +202,70 @@ class TestVariant < Test::Unit::TestCase
 			assert_equal(@optional_references, rule.rule('optional_references'))
 			assert_equal(@required_references, rule.rule('required_references'))
 		end
+		@simple_rule.send(:import)
+		@simple_rule.each do |variant|
+			assert_equal(@simple_rule, variant.rule('simple_rule'))
+			assert_equal(@weighted_rule, variant.rule('weighted_rule'))
+			assert_equal(
+				@optional_references,
+				variant.rule('optional_references')
+			)
+			assert_equal(
+				@required_references,
+				variant.rule('required_references')
+			)
+		end
+	end
+
+	def test_unexisting_rule
+		@simple_rule.send(:rules=, @rules_dir1)
+		@simple_rule.send(:import)
+		assert_raise(ArgumentError) { @simple_rule.rule('complex_rule') }
+	end
+
+	######################
+	# TESTS ON INSTANCES #
+	######################
+
+	def test_attributes
+		@simple_rule.send(:rules=, @rules_dir1)
+		@simple_rule.send(:import)
+		@simple_rule.each do |variant|
+			assert_respond_to(variant, :id)
+			assert_respond_to(variant, :value)
+			assert_respond_to(variant, :weight)
+		end
+		@weighted_rule.send(:rules=, @rules_dir1)
+		@weighted_rule.send(:import)
+		@weighted_rule.each do |variant|
+			assert_respond_to(variant, :id)
+			assert_respond_to(variant, :value)
+			assert_respond_to(variant, :weight)
+		end
+		@required_references.send(:rules=, @rules_dir1)
+		@required_references.send(:import)
+		@required_references.each do |variant|
+			assert_respond_to(variant, :id)
+			assert_respond_to(variant, :value)
+			assert_respond_to(variant, :weight)
+			assert_respond_to(variant, :simple_rule)
+		end
+	end
+
+	def test_reference_attributes
+		@required_references.send(:rules=, @rules_dir1)
+		@required_references.send(:import)
+		@simple_rule.send(:rules=, @rules_dir1)
+		@simple_rule.send(:import)
+		assert_same(@simple_rule[2], @required_references[1].simple_rule)
+	end
+
+	def test_inspect
+		@simple_rule.send(:import)
+		assert_equal(
+			'#<simple_rule "id":1 "value":"a">',
+			@simple_rule[1].inspect
+		)
 	end
 
 end
