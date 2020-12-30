@@ -9,6 +9,7 @@ require_relative '../lib/rand_text_core/variant'
 class TestVariant < Test::Unit::TestCase
 
 	TEST_DIR = 'test/dir1/'
+	INVALID_DIR = 'test/invalid_dir/'
 
 	def setup
 		@simple_rule = Class.new(RandTextCore::Variant) do
@@ -217,10 +218,52 @@ class TestVariant < Test::Unit::TestCase
 		end
 	end
 
+	def test_no_id
+		no_id = Class.new(RandTextCore::Variant) do
+			file_path INVALID_DIR + 'no_id.csv'
+		end
+		assert_raise(RuntimeError) { no_id.send(:import) }
+	end
+
+	def test_duplicated_id
+		duplicated_id = Class.new(RandTextCore::Variant) do
+			file_path INVALID_DIR + 'duplicated_id.csv'
+		end
+		assert_raise(RuntimeError) { duplicated_id.send(:import) }
+	end
+
 	def test_unexisting_rule
 		@simple_rule.send(:rules=, @rules_dir1)
 		@simple_rule.send(:import)
 		assert_raise(ArgumentError) { @simple_rule.rule('complex_rule') }
+	end
+
+	def test_identical_attributes
+		identical_attributes = Class.new(RandTextCore::Variant) do
+			file_path INVALID_DIR + 'identical_attributes.csv'
+		end
+		assert_raise { identical_attributes.send(:import) }
+	end
+
+	def test_null_id
+		null_id = Class.new(RandTextCore::Variant) do
+			file_path INVALID_DIR + 'null_id.csv'
+		end
+		assert_raise(ArgumentError) { null_id.send(:import) }
+	end
+
+	def test_too_few_fields
+		too_few_fields = Class.new(RandTextCore::Variant) do
+			file_path INVALID_DIR + 'too_few_fields.csv'
+		end
+		assert_raise(ArgumentError) { too_few_fields.send(:import) }
+	end
+
+	def test_too_much_fields
+		too_much_fields = Class.new(RandTextCore::Variant) do
+			file_path INVALID_DIR + 'too_much_fields.csv'
+		end
+		assert_raise(ArgumentError) { too_much_fields.send(:import) }
 	end
 
 	######################
