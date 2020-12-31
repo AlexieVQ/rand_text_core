@@ -32,6 +32,14 @@ module RandTextCore::Refinements
 			self.split('_').map { |word| word.capitalize }.join('')
 		end
 
+		# Tests if the string represents a valid name for a CSV file.
+		# A valid name is a name in the format +lower_snake_case.csv+.
+		# @returns [true, false] +true+ if the name is valid, +false+ otherwise
+		def valid_csv_file_name?
+			parts = self.split('.')
+			parts.length == 2 && parts[0].lower_snake_case? && parts[1] == 'csv'
+		end
+
 	end
 
 end

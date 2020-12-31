@@ -42,4 +42,16 @@ class TestString < Test::Unit::TestCase
 		assert_raise(RuntimeError) { 'AbcDef'.camelize }
 	end
 
+	def test_valid_csv_file
+		assert_true('abc.csv'.valid_csv_file_name?)
+		assert_true('abc_def.csv'.valid_csv_file_name?)
+		assert_true('abc1_def2.csv'.valid_csv_file_name?)
+		assert_true('abc__def.csv'.valid_csv_file_name?)
+		assert_false('abc_def.csv.bak'.valid_csv_file_name?)
+		assert_false('abc_def'.valid_csv_file_name?)
+		assert_false('.csv'.valid_csv_file_name?)
+		assert_false('abc_def.txt'.valid_csv_file_name?)
+		assert_false('Abc_Def.csv'.valid_csv_file_name?)
+	end
+
 end
