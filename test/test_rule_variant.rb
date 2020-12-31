@@ -89,6 +89,22 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_raise(RuntimeError) { klass.picker_name }
 	end
 
+	def test_non_existing_file
+		assert_raise(ArgumentError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'complex_rule.csv'
+			end
+		end
+	end
+
+	def test_invalid_file_name
+		assert_raise(ArgumentError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path INVALID_DIR + 'invalid name.csv'
+			end
+		end
+	end
+
 	def test_reset_file_path
 		assert_raise(RuntimeError) do
 			@simple_rule.file_path(TEST_DIR + 'weighted_rule.csv')
@@ -167,6 +183,13 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def test_unset_attr_types
 		assert_raise(RuntimeError) { @simple_rule.send(:attr_types) }
+	end
+
+	def test_invalid_attr_name
+		invalid_attr_name = Class.new(RandTextCore::RuleVariant) do
+			file_path INVALID_DIR + 'invalid_attr_name.csv'
+		end
+		assert_raise(RuntimeError) { invalid_attr_name.send(:import); p invalid_attr_name.send(:attr_types) }
 	end
 
 	def test_import
@@ -258,14 +281,14 @@ class TestRuleVariant < Test::Unit::TestCase
 		too_few_fields = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'too_few_fields.csv'
 		end
-		assert_raise(ArgumentError) { too_few_fields.send(:import) }
+		assert_raise(RuntimeError) { too_few_fields.send(:import) }
 	end
 
 	def test_too_much_fields
 		too_much_fields = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'too_much_fields.csv'
 		end
-		assert_raise(ArgumentError) { too_much_fields.send(:import) }
+		assert_raise(RuntimeError) { too_much_fields.send(:import) }
 	end
 
 	######################

@@ -1,5 +1,6 @@
 require 'csv'
 require_relative '../rand_text_core'
+require_relative 'refinements/string'
 
 # A variant of a rule is a tuple from a CSV file.
 #
@@ -11,6 +12,8 @@ require_relative '../rand_text_core'
 #
 # @author AlexieVQ
 class RandTextCore::RuleVariant
+
+	using RandTextCore::Refinements
 
 	###########################
 	# CLASS METHOD FOR A RULE #
@@ -84,6 +87,7 @@ class RandTextCore::RuleVariant
 	# File path can only be set one time.
 	# The attribute {RuleVariant#rule_name} and {RuleVariant#picker_name} are
 	# inferred from the file name.
+	# File name must be in the format +lower_snake_case.csv+.
 	# @param [#to_str] path path to the CSV file, must end with .csv
 	# @return [String] path to the CSV file (frozen)
 	# @raise [TypeError] no implicit conversion of path into String
@@ -103,10 +107,15 @@ class RandTextCore::RuleVariant
 			raise TypeError,
 				"no implicit conversion of #{path.class} into String"
 		end
-		@rule_name = path.split('/').last.gsub(/\.csv$/,'').to_sym
-		@picker_name = @rule_name.to_s.split('_').map do |word|
-			word.capitalize
-		end.join('').to_sym
+		unless File.exist?(path)
+			raise ArgumentError, "file #{path} does not exist"
+		end
+		file_name = path.split('/').last
+		unless file_name.valid_csv_file_name?
+			raise ArgumentError, "file #{path} does not have a valid name"
+		end
+		@rule_name = file_name.split('.').first.to_sym
+		@picker_name = @rule_name.to_s.camelize.to_sym
 		@file = path.freeze
 	end
 
@@ -155,6 +164,7 @@ class RandTextCore::RuleVariant
 	# Set +attr_types+ from given CSV header.
 	# @param [Array<Symbol>] header CSV header (names of attributes)
 	# @return [nil]
+	# @raise [ArgumentError] not a valid attribute name
 	# @raise [RuntimeError] no id attribute found
 	def self.attr_types=(header)
 		@attr_types = {}
@@ -243,6 +253,7 @@ class RandTextCore::RuleVariant
 	# The class is now considered initialized in regard of
 	# {RuleVariant#initialized?}.
 	# @return [self]
+	# @raise [RuntimeError] wrong number of fields in the row
 	def self.import
 		@variants = {}
 		@references ||= {}
@@ -250,9 +261,18 @@ class RandTextCore::RuleVariant
 			self.file,
 			col_sep: ';',
 			headers: true,
-			header_converters: :symbol
+			header_converters: ->(str) do
+				unless str.lower_snake_case?
+					raise "invalid name for attribute\"#{str}\""
+				end
+				str.to_sym
+			end
 		).each do |row|
 			self.attr_types = row.headers unless @attr_types
+			unless row.size == self.attr_types.size
+				raise "wrong number of arguments in tuple #{row} " +
+					"(given #{row.size}, expected #{self.attr_types.size}"
+			end
 			self.add_entity(row)
 		end
 		@initialized = true
@@ -349,11 +369,6 @@ class RandTextCore::RuleVariant
 	# @raise [ArgumentError] invalid row
 	def initialize(row)
 		types = self.class.send(:attr_types)
-		unless row.length == types.length
-			raise ArgumentError,
-				"wrong number of attributes (given #{row.length}, " +
-				"expected #{types.length})"
-		end
 		@attributes = {}
 		row.headers.each do |attribute|
 			if [:id, :reference, :weight].include?(types[attribute])
@@ -364,9 +379,6 @@ class RandTextCore::RuleVariant
 				end
 			elsif types[attribute] == :string
 				@attributes[attribute] = row[attribute].freeze
-			else
-				raise "unknown attribute #{attribute} for rule " +
-					self.class.rule_name
 			end
 		end
 		@attributes.freeze
