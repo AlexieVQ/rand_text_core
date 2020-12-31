@@ -20,11 +20,11 @@ class TestRuleVariant < Test::Unit::TestCase
 		end
 		@optional_references = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'optional_references.csv'
-			reference 'simple_rule', 'simple_rule'
+			reference :simple_rule, :simple_rule
 		end
 		@required_references = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'required_references.csv'
-			reference 'simple_rule', 'simple_rule'
+			reference :simple_rule, :simple_rule
 		end
 		@rules_dir1 = [
 			@simple_rule,
@@ -46,7 +46,7 @@ class TestRuleVariant < Test::Unit::TestCase
 			RandTextCore::RuleVariant.file_path(TEST_DIR + 'simple_rule.csv')
 		end
 		assert_raise(RuntimeError) do
-			RandTextCore::RuleVariant.reference('simple_rule', 'simple_rule')
+			RandTextCore::RuleVariant.reference(:simple_rule, :simple_rule)
 		end
 		assert_raise(RuntimeError) { RandTextCore::RuleVariant.references }
 		assert_raise(RuntimeError) do
@@ -56,17 +56,17 @@ class TestRuleVariant < Test::Unit::TestCase
 	end
 
 	def test_rule_name
-		assert_equal('simple_rule', @simple_rule.rule_name)
-		assert_equal('weighted_rule', @weighted_rule.rule_name)
-		assert_equal('optional_references', @optional_references.rule_name)
-		assert_equal('required_references', @required_references.rule_name)
+		assert_equal(:simple_rule, @simple_rule.rule_name)
+		assert_equal(:weighted_rule, @weighted_rule.rule_name)
+		assert_equal(:optional_references, @optional_references.rule_name)
+		assert_equal(:required_references, @required_references.rule_name)
 	end
 
 	def test_picker_name
-		assert_equal('SimpleRule', @simple_rule.picker_name)
-		assert_equal('WeightedRule', @weighted_rule.picker_name)
-		assert_equal('OptionalReferences', @optional_references.picker_name)
-		assert_equal('RequiredReferences', @required_references.picker_name)
+		assert_equal(:SimpleRule, @simple_rule.picker_name)
+		assert_equal(:WeightedRule, @weighted_rule.picker_name)
+		assert_equal(:OptionalReferences, @optional_references.picker_name)
+		assert_equal(:RequiredReferences, @required_references.picker_name)
 	end
 
 	def test_file_name
@@ -104,13 +104,13 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
 				file_path TEST_DIR + 'required_references.csv'
-				reference 4, 'simple_rule'
+				reference 4, :simple_rule
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
 				file_path TEST_DIR + 'required_references.csv'
-				reference 'simple_rule', 5
+				reference :simple_rule, 5
 			end
 		end
 		assert_raise(TypeError) do
@@ -133,34 +133,34 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_equal({}, @simple_rule.references)
 		assert_equal({}, @weighted_rule.references)
 		assert_equal(
-			{ 'simple_rule' => 'simple_rule' },
+			{ simple_rule: :simple_rule },
 			@required_references.references
 		)
 		assert_equal(
-			{ 'simple_rule' => 'simple_rule' },
+			{ simple_rule: :simple_rule },
 			@optional_references.references
 		)
 	end
 
 	def test_attr_types
-		@simple_rule.send(:attr_types=, ['id', 'value'])
+		@simple_rule.send(:attr_types=, [:id, :value])
 		assert_equal(
-			{ 'id' => :id, 'value' => :string },
+			{ id: :id, value: :string },
 			@simple_rule.send(:attr_types)
 		)
-		@weighted_rule.send(:attr_types=, ['id', 'value', 'weight'])
+		@weighted_rule.send(:attr_types=, [:id, :value, :weight])
 		assert_equal(
-			{ 'id' => :id, 'value' => :string, 'weight' => :weight },
+			{ id: :id, value: :string, weight: :weight },
 			@weighted_rule.send(:attr_types)
 		)
-		@optional_references.send(:attr_types=, ['id', 'value', 'simple_rule'])
+		@optional_references.send(:attr_types=, [:id, :value, :simple_rule])
 		assert_equal(
-			{ 'id' => :id, 'value' => :string, 'simple_rule' => :reference },
+			{ id: :id, value: :string, simple_rule: :reference },
 			@optional_references.send(:attr_types)
 		)
-		@required_references.send(:attr_types=, ['id', 'value', 'simple_rule'])
+		@required_references.send(:attr_types=, [:id, :value, :simple_rule])
 		assert_equal(
-			{ 'id' => :id, 'value' => :string, 'simple_rule' => :reference },
+			{ id: :id, value: :string, simple_rule: :reference },
 			@required_references.send(:attr_types)
 		)
 	end
@@ -200,22 +200,22 @@ class TestRuleVariant < Test::Unit::TestCase
 	def test_rules
 		@rules_dir1.each { |rule| rule.send(:rules=, @rules_dir1 ) }
 		@rules_dir1.each do |rule|
-			assert_equal(@simple_rule, rule.rule('simple_rule'))
-			assert_equal(@weighted_rule, rule.rule('weighted_rule'))
-			assert_equal(@optional_references, rule.rule('optional_references'))
-			assert_equal(@required_references, rule.rule('required_references'))
+			assert_equal(@simple_rule, rule.rule(:simple_rule))
+			assert_equal(@weighted_rule, rule.rule(:weighted_rule))
+			assert_equal(@optional_references, rule.rule(:optional_references))
+			assert_equal(@required_references, rule.rule(:required_references))
 		end
 		@simple_rule.send(:import)
 		@simple_rule.each do |variant|
-			assert_equal(@simple_rule, variant.rule('simple_rule'))
-			assert_equal(@weighted_rule, variant.rule('weighted_rule'))
+			assert_equal(@simple_rule, variant.rule(:simple_rule))
+			assert_equal(@weighted_rule, variant.rule(:weighted_rule))
 			assert_equal(
 				@optional_references,
-				variant.rule('optional_references')
+				variant.rule(:optional_references)
 			)
 			assert_equal(
 				@required_references,
-				variant.rule('required_references')
+				variant.rule(:required_references)
 			)
 		end
 	end
@@ -237,7 +237,7 @@ class TestRuleVariant < Test::Unit::TestCase
 	def test_unexisting_rule
 		@simple_rule.send(:rules=, @rules_dir1)
 		@simple_rule.send(:import)
-		assert_raise(ArgumentError) { @simple_rule.rule('complex_rule') }
+		assert_raise(ArgumentError) { @simple_rule.rule(:complex_rule) }
 	end
 
 	def test_identical_attributes
@@ -308,7 +308,7 @@ class TestRuleVariant < Test::Unit::TestCase
 	def test_inspect
 		@simple_rule.send(:import)
 		assert_equal(
-			'#<simple_rule "id":1 "value":"a">',
+			'#<simple_rule id=1, value="a">',
 			@simple_rule[1].inspect
 		)
 	end

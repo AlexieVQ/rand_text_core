@@ -27,8 +27,7 @@ class RandTextCore::RuleVariant
 	end
 
 	# Returns rule name, in +lower_snake_case+, as in file name.
-	# @return [String] rule name, in +lower_snake_case+, as in file name
-	#  (frozen)
+	# @return [Symbol] rule name, in +lower_snake_case+, as in file name
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
 	#  {RuleVariant#file_path}
 	# @example
@@ -36,7 +35,7 @@ class RandTextCore::RuleVariant
 	#      file_path 'rules/my_rule.csv'
 	#  end
 	#  
-	#  MyRule.rule_name	#=> 'my_rule'
+	#  MyRule.rule_name	#=> :my_rule
 	def self.rule_name
 		if self == RandTextCore::RuleVariant
 			raise "class RuleVariant does not represent any rule"
@@ -48,8 +47,7 @@ class RandTextCore::RuleVariant
 	end
 
 	# Returns rule name, in +UpperCamelCase+, as in file name.
-	# @return [String] rule name, in +UpperCamelCase+, as in file name
-	#  (frozen)
+	# @return [Symbol] rule name, in +UpperCamelCase+, as in file name
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
 	#  {RuleVariant#file_path}
 	# @example
@@ -57,7 +55,7 @@ class RandTextCore::RuleVariant
 	#      file_path 'rules/my_rule.csv'
 	#  end
 	#  
-	#  MyRule.picker_name	#=> 'MyRule'
+	#  MyRule.picker_name	#=> :MyRule
 	def self.picker_name
 		if self == RandTextCore::RuleVariant
 			raise "class RuleVariant does not represent any rule"
@@ -105,20 +103,20 @@ class RandTextCore::RuleVariant
 			raise TypeError,
 				"no implicit conversion of #{path.class} into String"
 		end
-		@rule_name = path.split('/').last.gsub(/\.csv$/,'').freeze
-		@picker_name = @rule_name.split('_').map do |word|
+		@rule_name = path.split('/').last.gsub(/\.csv$/,'').to_sym
+		@picker_name = @rule_name.to_s.split('_').map do |word|
 			word.capitalize
-		end.join('').freeze
+		end.join('').to_sym
 		@file = path.freeze
 	end
 
 	# Declares that given attribute is a reference to rule +rule_name+'s id.
-	# @param [#to_str] attribute attribute from current rule (must only contain
+	# @param [#to_sym] attribute attribute from current rule (must only contain
 	#  non-zero integers)
-	# @param [#to_str] rule_name name of the rule to reference (returned by 
+	# @param [#to_sym] rule_name name of the rule to reference (returned by 
 	#  {RuleVariant#rule_name})
 	# @return [nil]
-	# @raise [TypeError] no implicit conversion for arguments into String
+	# @raise [TypeError] no implicit conversion for arguments into Symbol
 	# @raise [RuntimeError] called on RuleVariant
 	def self.reference(attribute, rule_name)
 		if self == RandTextCore::RuleVariant
@@ -126,16 +124,16 @@ class RandTextCore::RuleVariant
 		end
 		@references ||= {}
 		begin
-			attribute = attribute.to_str.freeze
+			attribute = attribute.to_sym
 		rescue NoMethodError
 			raise TypeError,
-				"no implicit conversion of #{attribute.class} into String"
+				"no implicit conversion of #{attribute.class} into Symbol"
 		end
 		begin
-			rule_name = rule_name.to_str.freeze
+			rule_name = rule_name.to_sym
 		rescue NoMethodError
 			raise TypeError,
-				"no implicit conversion of #{rule_name.class} into String"
+				"no implicit conversion of #{rule_name.class} into Symbol"
 		end
 		@references[attribute] = rule_name
 		nil
@@ -143,7 +141,7 @@ class RandTextCore::RuleVariant
 
 	# Returns a hash map associating attribute names to the names of the rules
 	# they reference.
-	# @return [Hash{String=>String}] hash map associating attribute names to the
+	# @return [Hash{Symbol=>Symbol}] hash map associating attribute names to the
 	#  names of the rules they reference (frozen)
 	# @raise [RuntimeError] called on RuleVariant
 	def self.references
@@ -155,22 +153,22 @@ class RandTextCore::RuleVariant
 	end
 
 	# Set +attr_types+ from given CSV header.
-	# @param [Array<String>] header CSV header (names of attributes)
+	# @param [Array<Symbol>] header CSV header (names of attributes)
 	# @return [nil]
 	# @raise [RuntimeError] no id attribute found
 	def self.attr_types=(header)
 		@attr_types = {}
 		header.each do |attribute|
-			if attribute == 'id'
+			if attribute == :id
 				@attr_types[attribute] = :id
-				define_method(:default_id) { @attributes['id'] }
+				define_method(:default_id) { @attributes[:id] }
 				private(:default_id)
 				unless method_defined?(:id)
 					define_method(:id) { self.send(:default_id) }
 				end
-			elsif attribute == 'weight'
+			elsif attribute == :weight
 				@attr_types[attribute] = :weight
-				define_method(:default_weight) { @attributes['weight'] }
+				define_method(:default_weight) { @attributes[:weight] }
 			elsif references.keys.include?(attribute)
 				@attr_types[attribute] = :reference
 				sym = "default_#{attribute}".to_sym
@@ -178,23 +176,23 @@ class RandTextCore::RuleVariant
 					self.rule(attribute)[@attributes[attribute]]
 				end
 				private(sym)
-				unless method_defined?(attribute.to_sym)
-					define_method(attribute.to_sym) { self.send(sym) }
+				unless method_defined?(attribute)
+					define_method(attribute) { self.send(sym) }
 				end
 			else
 				@attr_types[attribute] = :string
 				sym = "default_#{attribute}"
 				define_method(sym) { @attributes[attribute] }
 				private(sym)
-				unless method_defined?(attribute.to_sym)
-					define_method(attribute.to_sym) { self.send(sym) }
+				unless method_defined?(attribute)
+					define_method(attribute) { self.send(sym) }
 				end
 			end
 		end
-		unless @attr_types['id']
+		unless @attr_types[:id]
 			raise "no attribute id found for rule #{self.rule_name}"
 		end
-		unless @attr_types['weight']
+		unless @attr_types[:weight]
 			define_method(:default_weight) { 1 }
 		end
 		private(:default_weight)
@@ -210,7 +208,7 @@ class RandTextCore::RuleVariant
 	#  [+:weight+] the variant's weight
 	#  [+:reference+] a reference to a variant of another rule
 	#  [+:string+] a string value
-	# @return [Hash{String=>:id,:weight,:reference,:string}] hash map
+	# @return [Hash{Symbol=>:id,:weight,:reference,:string}] hash map
 	#  associating attributes' names to their type
 	# @raise [RuntimeError] called on RuleVariant, or attributes' types not yet
 	#  set
@@ -248,7 +246,12 @@ class RandTextCore::RuleVariant
 	def self.import
 		@variants = {}
 		@references ||= {}
-		CSV.read(self.file, col_sep: ';', headers: true).each do |row|
+		CSV.read(
+			self.file,
+			col_sep: ';',
+			headers: true,
+			header_converters: :symbol
+		).each do |row|
 			self.attr_types = row.headers unless @attr_types
 			self.add_entity(row)
 		end
@@ -312,17 +315,17 @@ class RandTextCore::RuleVariant
 	end
 
 	# Returns rule of given name.
-	# @param [#to_str] name name of the rule (returned by
+	# @param [#to_sym] name name of the rule (returned by
 	#  {RuleVariant#rule_name})
 	# @return [Class] class extending RuleVariant representing the rule
-	# @raise [TypeError] no implicit conversion of name into String
+	# @raise [TypeError] no implicit conversion of name into Symbol
 	# @raise [ArgumentError] no rule of given name in the system
 	def self.rule(name)
 		begin
-			name = name.to_str
+			name = name.to_sym
 		rescue NoMethodError
 			raise TypeError,
-				"no implicit conversion of #{name.class} into String"
+				"no implicit conversion of #{name.class} into Symbol"
 		end
 		rule = @rules.find { |rule| rule.rule_name == name }
 		unless rule
@@ -337,7 +340,7 @@ class RandTextCore::RuleVariant
 	# INSTANCE METHODS FOR VARIANT #
 	################################
 
-	# @ attributes	=> [Hash{String=>Integer, String}] hash map associating
+	# @ attributes	=> [Hash{Symbol=>Integer, String}] hash map associating
 	#                  attribute names to their value: String for strings and
 	#                  Integer for id, reference and weight
 
@@ -371,16 +374,16 @@ class RandTextCore::RuleVariant
 	end
 
 	# Returns rule of given name.
-	# @param [#to_str] name name of the rule
+	# @param [#to_sym] name name of the rule
 	# @return [Class] class extending RuleVariant representing the rule
-	# @raise [TypeError] no implicit conversion of name into String
+	# @raise [TypeError] no implicit conversion of name into Symbol
 	# @raise [ArgumentError] no rule of given name in the system
 	def rule(name)
 		begin
-			name = name.to_str
+			name = name.to_sym
 		rescue NoMethodError
 			raise TypeError,
-				"no implicit conversion of #{name.class} into String"
+				"no implicit conversion of #{name.class} into Symbol"
 		end
 		self.class.rule(name)
 	end
@@ -398,11 +401,13 @@ class RandTextCore::RuleVariant
 	#      file_path 'my_rule.csv'
 	#  end
 	#  
-	#  MyRule[1].inspect	#=> '#<my_rule "id":1 "value":"aaa" "weight":10>'
+	#  MyRule[1].inspect	#=> '#<my_rule id=1, value="aaa", weight=10>'
 	def inspect
 		"#<#{self.class.rule_name} #{@attributes.keys.map do |k|
-			"#{k.inspect}:#{self.send(k.to_sym).inspect}"
-		end.join(' ')}>"
+			"#{k}=#{self.send(k.to_sym).inspect}"
+		end.join(', ')}>"
 	end
+
+	alias :to_s :inspect
 
 end
