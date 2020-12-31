@@ -1,16 +1,16 @@
 require 'csv'
 require_relative '../rand_text_core'
 
-# A Variant of a rule is a tuple from a CSV file.
+# A variant of a rule is a tuple from a CSV file.
 #
-# A class extending Variant represents a rule, i.e. a CSV table, and all its
+# A class extending RuleVariant represents a rule, i.e. a CSV table, and all its
 # instances are variants of this rule.
 #
-# A subclass of Variant is an Enumerable object, i.e. all its instances can be
-# accessed through Enumerable's methods on the class.
+# A subclass of RuleVariant is an Enumerable object, i.e. all its instances can
+# be accessed through Enumerable's methods on the class.
 #
 # @author AlexieVQ
-class RandTextCore::Variant
+class RandTextCore::RuleVariant
 
 	###########################
 	# CLASS METHOD FOR A RULE #
@@ -29,17 +29,17 @@ class RandTextCore::Variant
 	# Returns rule name, in +lower_snake_case+, as in file name.
 	# @return [String] rule name, in +lower_snake_case+, as in file name
 	#  (frozen)
-	# @raise [RuntimeError] called on Variant, or file path not set with
-	#  {Variant#file_path}
+	# @raise [RuntimeError] called on RuleVariant, or file path not set with
+	#  {RuleVariant#file_path}
 	# @example
-	#  class MyRule < RandTextCore::Variant
+	#  class MyRule < RandTextCore::RuleVariant
 	#      file_path 'rules/my_rule.csv'
 	#  end
 	#  
 	#  MyRule.rule_name	#=> 'my_rule'
 	def self.rule_name
-		if self == RandTextCore::Variant
-			raise "class Variant does not represent any rule"
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant does not represent any rule"
 		end
 		unless @rule_name
 			raise "file path not set for class #{self}"
@@ -50,17 +50,17 @@ class RandTextCore::Variant
 	# Returns rule name, in +UpperCamelCase+, as in file name.
 	# @return [String] rule name, in +UpperCamelCase+, as in file name
 	#  (frozen)
-	# @raise [RuntimeError] called on Variant, or file path not set with
-	#  {Variant#file_path}
+	# @raise [RuntimeError] called on RuleVariant, or file path not set with
+	#  {RuleVariant#file_path}
 	# @example
-	#  class MyRule < RandTextCore::Variant
+	#  class MyRule < RandTextCore::RuleVariant
 	#      file_path 'rules/my_rule.csv'
 	#  end
 	#  
 	#  MyRule.picker_name	#=> 'MyRule'
 	def self.picker_name
-		if self == RandTextCore::Variant
-			raise "class Variant does not represent any rule"
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant does not represent any rule"
 		end
 		unless @picker_name
 			raise "file path not set for class #{self}"
@@ -68,13 +68,13 @@ class RandTextCore::Variant
 		@picker_name
 	end
 
-	# Returns file path set with {Variant#file_path}.
+	# Returns file path set with {RuleVariant#file_path}.
 	# @return [String] file path (frozen)
-	# @raise [RuntimeError] called on Variant, or file path not set with
-	#  {Variant#file_path}
+	# @raise [RuntimeError] called on RuleVariant, or file path not set with
+	#  {RuleVariant#file_path}
 	def self.file
-		if self == RandTextCore::Variant
-			raise "class Variant does not represent any rule"
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant does not represent any rule"
 		end
 		unless @file
 			raise "file path not set for class #{self}"
@@ -84,17 +84,17 @@ class RandTextCore::Variant
 
 	# Set file path.
 	# File path can only be set one time.
-	# The attribute {Variant#rule_name} and {Variant#picker_name} are inferred
-	# from the file name.
+	# The attribute {RuleVariant#rule_name} and {RuleVariant#picker_name} are
+	# inferred from the file name.
 	# @param [#to_str] path path to the CSV file, must end with .csv
 	# @return [String] path to the CSV file (frozen)
 	# @raise [TypeError] no implicit conversion of path into String
 	# @raise [ArgumentError] given String does not represent a path to a CSV
 	#  file
-	# @raise [RuntimeError] called on Variant, or called multiple time
+	# @raise [RuntimeError] called on RuleVariant, or called multiple time
 	def self.file_path(path)
-		if self == RandTextCore::Variant
-			raise "cannot set file path for class Variant"
+		if self == RandTextCore::RuleVariant
+			raise "cannot set file path for class RuleVariant"
 		end
 		if @file
 			raise "file path already set for class #{self}"
@@ -116,13 +116,13 @@ class RandTextCore::Variant
 	# @param [#to_str] attribute attribute from current rule (must only contain
 	#  non-zero integers)
 	# @param [#to_str] rule_name name of the rule to reference (returned by 
-	#  {Variant#rule_name})
+	#  {RuleVariant#rule_name})
 	# @return [nil]
 	# @raise [TypeError] no implicit conversion for arguments into String
-	# @raise [RuntimeError] called on Variant
+	# @raise [RuntimeError] called on RuleVariant
 	def self.reference(attribute, rule_name)
-		if self == RandTextCore::Variant
-			raise "cannot set reference for class Variant"
+		if self == RandTextCore::RuleVariant
+			raise "cannot set reference for class RuleVariant"
 		end
 		@references ||= {}
 		begin
@@ -145,10 +145,10 @@ class RandTextCore::Variant
 	# they reference.
 	# @return [Hash{String=>String}] hash map associating attribute names to the
 	#  names of the rules they reference (frozen)
-	# @raise [RuntimeError] called on Variant
+	# @raise [RuntimeError] called on RuleVariant
 	def self.references
-		if self == RandTextCore::Variant
-			raise "class Variant has no references"
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant has no references"
 		end
 		@references ||= {}
 		return self.initialized? ? @references : @references.clone.freeze
@@ -212,10 +212,11 @@ class RandTextCore::Variant
 	#  [+:string+] a string value
 	# @return [Hash{String=>:id,:weight,:reference,:string}] hash map
 	#  associating attributes' names to their type
-	# @raise [RuntimeError] called on Variant, or attributes' types not yet set
+	# @raise [RuntimeError] called on RuleVariant, or attributes' types not yet
+	#  set
 	def self.attr_types
-		if self == RandTextCore::Variant
-			raise "class Variant has no attributes"
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant has no attributes"
 		end
 		unless @attr_types
 			name = @rule_name ? "rule #{@rule_name}" : "class #{self}"
@@ -242,7 +243,7 @@ class RandTextCore::Variant
 
 	# Import entities from CSV file, then freeze the class.
 	# The class is now considered initialized in regard of
-	# {Variant#initialized?}.
+	# {RuleVariant#initialized?}.
 	# @return [self]
 	def self.import
 		@variants = {}
@@ -277,7 +278,7 @@ class RandTextCore::Variant
 
 	# Returns variant of given id.
 	# @param [#to_int] id id of the variant 
-	# @return [Variant] variant of given id
+	# @return [RuleVariant] variant of given id
 	# @raise [KeyError] no variant of given id has been found
 	# @raise [TypeError] no implicit conversion of +id+ into Integer
 	def self.[](id)
@@ -292,12 +293,12 @@ class RandTextCore::Variant
 	# Executes given block for each variant of the rule.
 	# If no block is given, return an enumerator on the variants of the rule.
 	# @yield [variant] block to execute on each variant
-	# @return [Enumerator<Variant>, self] +self+ if a block is given, or an
+	# @return [Enumerator<RuleVariant>, self] +self+ if a block is given, or an
 	#  enumerator on the variants of the rule
-	# @raise [RuntimeError] called on Variant or class not initialized
+	# @raise [RuntimeError] called on RuleVariant or class not initialized
 	def self.each
-		if self == RandTextCore::Variant
-			raise "class Variant has no data"
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant has no data"
 		end
 		unless self.initialized?
 			raise "class #{self} not initialized"
@@ -311,8 +312,9 @@ class RandTextCore::Variant
 	end
 
 	# Returns rule of given name.
-	# @param [#to_str] name name of the rule (returned by {Variant#rule_name})
-	# @return [Class] class extending Variant representing the rule
+	# @param [#to_str] name name of the rule (returned by
+	#  {RuleVariant#rule_name})
+	# @return [Class] class extending RuleVariant representing the rule
 	# @raise [TypeError] no implicit conversion of name into String
 	# @raise [ArgumentError] no rule of given name in the system
 	def self.rule(name)
@@ -370,7 +372,7 @@ class RandTextCore::Variant
 
 	# Returns rule of given name.
 	# @param [#to_str] name name of the rule
-	# @return [Class] class extending Variant representing the rule
+	# @return [Class] class extending RuleVariant representing the rule
 	# @raise [TypeError] no implicit conversion of name into String
 	# @raise [ArgumentError] no rule of given name in the system
 	def rule(name)
@@ -392,7 +394,7 @@ class RandTextCore::Variant
 	#  # 1;aaa;10
 	#  # 2;bbb;20
 	#  
-	#  class MyRule < RandTextCore::Variant
+	#  class MyRule < RandTextCore::RuleVariant
 	#      file_path 'my_rule.csv'
 	#  end
 	#  

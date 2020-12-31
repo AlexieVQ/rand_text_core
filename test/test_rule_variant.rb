@@ -4,25 +4,25 @@ require 'simplecov'
 SimpleCov.start
 
 require 'test/unit'
-require_relative '../lib/rand_text_core/variant'
+require_relative '../lib/rand_text_core/rule_variant'
 
-class TestVariant < Test::Unit::TestCase
+class TestRuleVariant < Test::Unit::TestCase
 
 	TEST_DIR = 'test/dir1/'
 	INVALID_DIR = 'test/invalid_dir/'
 
 	def setup
-		@simple_rule = Class.new(RandTextCore::Variant) do
+		@simple_rule = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'simple_rule.csv'
 		end
-		@weighted_rule = Class.new(RandTextCore::Variant) do
+		@weighted_rule = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'weighted_rule.csv'
 		end
-		@optional_references = Class.new(RandTextCore::Variant) do
+		@optional_references = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'optional_references.csv'
 			reference 'simple_rule', 'simple_rule'
 		end
-		@required_references = Class.new(RandTextCore::Variant) do
+		@required_references = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'required_references.csv'
 			reference 'simple_rule', 'simple_rule'
 		end
@@ -38,19 +38,21 @@ class TestVariant < Test::Unit::TestCase
 	# TESTS ON CLASS #
 	##################
 
-	def test_variant_class_calls
-		assert_raise(RuntimeError) { RandTextCore::Variant.rule_name }
-		assert_raise(RuntimeError) { RandTextCore::Variant.picker_name }
-		assert_raise(RuntimeError) { RandTextCore::Variant.file }
+	def test_rule_variant_class_calls
+		assert_raise(RuntimeError) { RandTextCore::RuleVariant.rule_name }
+		assert_raise(RuntimeError) { RandTextCore::RuleVariant.picker_name }
+		assert_raise(RuntimeError) { RandTextCore::RuleVariant.file }
 		assert_raise(RuntimeError) do 
-			RandTextCore::Variant.file_path(TEST_DIR + 'simple_rule.csv')
+			RandTextCore::RuleVariant.file_path(TEST_DIR + 'simple_rule.csv')
 		end
 		assert_raise(RuntimeError) do
-			RandTextCore::Variant.reference('simple_rule', 'simple_rule')
+			RandTextCore::RuleVariant.reference('simple_rule', 'simple_rule')
 		end
-		assert_raise(RuntimeError) { RandTextCore::Variant.references }
-		assert_raise(RuntimeError) { RandTextCore::Variant.send(:attr_types) }
-		assert_raise(RuntimeError) { RandTextCore::Variant.each }
+		assert_raise(RuntimeError) { RandTextCore::RuleVariant.references }
+		assert_raise(RuntimeError) do
+			RandTextCore::RuleVariant.send(:attr_types)
+		end
+		assert_raise(RuntimeError) { RandTextCore::RuleVariant.each }
 	end
 
 	def test_rule_name
@@ -81,7 +83,7 @@ class TestVariant < Test::Unit::TestCase
 	end
 
 	def test_unset_file_path
-			klass = Class.new(RandTextCore::Variant)
+			klass = Class.new(RandTextCore::RuleVariant)
 		assert_raise(RuntimeError) { klass.file }
 		assert_raise(RuntimeError) { klass.rule_name }
 		assert_raise(RuntimeError) { klass.picker_name }
@@ -95,18 +97,18 @@ class TestVariant < Test::Unit::TestCase
 
 	def test_wrong_argument_type
 		assert_raise(TypeError) do
-			Class.new(RandTextCore::Variant) do
+			Class.new(RandTextCore::RuleVariant) do
 				file_path 3
 			end
 		end
 		assert_raise(TypeError) do
-			Class.new(RandTextCore::Variant) do
+			Class.new(RandTextCore::RuleVariant) do
 				file_path TEST_DIR + 'required_references.csv'
 				reference 4, 'simple_rule'
 			end
 		end
 		assert_raise(TypeError) do
-			Class.new(RandTextCore::Variant) do
+			Class.new(RandTextCore::RuleVariant) do
 				file_path TEST_DIR + 'required_references.csv'
 				reference 'simple_rule', 5
 			end
@@ -219,14 +221,14 @@ class TestVariant < Test::Unit::TestCase
 	end
 
 	def test_no_id
-		no_id = Class.new(RandTextCore::Variant) do
+		no_id = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'no_id.csv'
 		end
 		assert_raise(RuntimeError) { no_id.send(:import) }
 	end
 
 	def test_duplicated_id
-		duplicated_id = Class.new(RandTextCore::Variant) do
+		duplicated_id = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'duplicated_id.csv'
 		end
 		assert_raise(RuntimeError) { duplicated_id.send(:import) }
@@ -239,28 +241,28 @@ class TestVariant < Test::Unit::TestCase
 	end
 
 	def test_identical_attributes
-		identical_attributes = Class.new(RandTextCore::Variant) do
+		identical_attributes = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'identical_attributes.csv'
 		end
 		assert_raise { identical_attributes.send(:import) }
 	end
 
 	def test_null_id
-		null_id = Class.new(RandTextCore::Variant) do
+		null_id = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'null_id.csv'
 		end
 		assert_raise(ArgumentError) { null_id.send(:import) }
 	end
 
 	def test_too_few_fields
-		too_few_fields = Class.new(RandTextCore::Variant) do
+		too_few_fields = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'too_few_fields.csv'
 		end
 		assert_raise(ArgumentError) { too_few_fields.send(:import) }
 	end
 
 	def test_too_much_fields
-		too_much_fields = Class.new(RandTextCore::Variant) do
+		too_much_fields = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'too_much_fields.csv'
 		end
 		assert_raise(ArgumentError) { too_much_fields.send(:import) }
