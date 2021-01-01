@@ -40,26 +40,26 @@ becomes the following set of CSV tables in RandTextCore:
 
 **`origin.csv`**:
 
-```text
-id;value
-1;rule 1: {Rule1()}, rule 2: {Rule2()}
-2;rule 2: {Rule2()}, rule 1: {Rule1()}
+```csv
+id,value
+1,"rule 1: {Rule1()}, rule 2: {Rule2()}"
+2,"rule 2: {Rule2()}, rule 1: {Rule1()}"
 ```
 
 **`rule1.csv`**:
 
-```text
-id;value
-1;rule 1 variant 1
-2;rule 1 variant 2
-3;rule 1 variant 3
+```csv
+id,value
+1,"rule 1 variant 1"
+2,"rule 1 variant 2"
+3,"rule 1 variant 3"
 ```
 
 **`rule2.csv`**:
 
-```text
-id;value
-1;rule 2 variant 1
-2;rule 2 variant 2
-3;rule 2 variant 3
+```csv
+id,value
+1,"rule 2 variant 1"
+2,"rule 2 variant 2"
+3,"rule 2 variant 3"
 ```
