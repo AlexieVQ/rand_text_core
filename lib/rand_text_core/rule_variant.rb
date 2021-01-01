@@ -19,16 +19,6 @@ class RandTextCore::RuleVariant
 	# CLASS METHOD FOR A RULE #
 	###########################
 
-	class << self
-		include Enumerable
-
-		private
-
-		# Set the list of rules in the system
-		# @return [Array<Class>] list of classes representing rules
-		attr_writer :rules
-	end
-
 	# Returns rule name, in +lower_snake_case+, as in file name.
 	# @return [Symbol] rule name, in +lower_snake_case+, as in file name
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
@@ -304,7 +294,14 @@ class RandTextCore::RuleVariant
 	# @return [RuleVariant] variant of given id
 	# @raise [KeyError] no variant of given id has been found
 	# @raise [TypeError] no implicit conversion of +id+ into Integer
+	# @raise [RuntimeError] called on RuleVariant or class not initialized
 	def self.[](id)
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant has no data"
+		end
+		unless self.initialized?
+			raise "class #{self} not initialized"
+		end
 		begin
 			@variants.fetch(id.to_int)
 		rescue NoMethodError
@@ -334,6 +331,19 @@ class RandTextCore::RuleVariant
 		end
 	end
 
+	# Returns the number of variants of the rule.
+	# @returns [Integer] number of variants of the rule
+	# @raise [RuntimeError] called on RuleVariant, or class not initialized
+	def self.size
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant has no data"
+		end
+		unless self.initialized?
+			raise "class #{self} not initialized"
+		end
+		return @variants.size
+	end
+
 	# Returns rule of given name.
 	# @param [#to_sym] name name of the rule (returned by
 	#  {RuleVariant#rule_name})
@@ -355,6 +365,18 @@ class RandTextCore::RuleVariant
 	end
 
 	private_class_method :new
+
+	class << self
+		include Enumerable
+
+		alias :length :size
+
+		private
+
+		# Set the list of rules in the system
+		# @return [Array<Class>] list of classes representing rules
+		attr_writer :rules
+	end
 
 	################################
 	# INSTANCE METHODS FOR VARIANT #
