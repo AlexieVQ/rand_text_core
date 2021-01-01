@@ -1,4 +1,4 @@
-id;value;weight
-1;aaa;10
-2;bb;b;20
-3;ccc;30
+id,value,weight
+1,aaa,10
+2,bb,b,20
+3,ccc,30

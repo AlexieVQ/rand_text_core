@@ -259,7 +259,6 @@ class RandTextCore::RuleVariant
 		@references ||= {}
 		CSV.read(
 			self.file,
-			col_sep: ';',
 			headers: true,
 			header_converters: ->(str) do
 				unless str.lower_snake_case?
@@ -405,9 +404,9 @@ class RandTextCore::RuleVariant
 	# @return [String] representation of the variants and its attributes
 	# @example
 	#  # my_rule.csv:
-	#  # id;value;weight
-	#  # 1;aaa;10
-	#  # 2;bbb;20
+	#  # id,value,weight
+	#  # 1,aaa,10
+	#  # 2,bbb,20
 	#  
 	#  class MyRule < RandTextCore::RuleVariant
 	#      file_path 'my_rule.csv'
