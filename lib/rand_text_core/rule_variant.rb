@@ -259,6 +259,7 @@ class RandTextCore::RuleVariant
 		@references ||= {}
 		CSV.read(
 			self.file,
+			nil_value: '',
 			headers: true,
 			header_converters: ->(str) do
 				unless str.lower_snake_case?
