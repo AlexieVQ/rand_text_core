@@ -151,8 +151,8 @@ class RandTextCore::RuleVariant
 		# Returns a string in the format +"Reference<rule_name, type>"+.
 		# @return [String] string representing the type
 		# @example
-		#  p RandTextCore::RuleVariant::Reference[:my_rule, :optional]
-		#  # Reference<my_rule, optional>
+		#  p RandTextCore::RuleVariant::Reference[:MyRule, :optional]
+		#  # Reference<MyRule, optional>
 		def inspect
 			super + "<#{target}, #{type}>"
 		end
@@ -233,26 +233,6 @@ class RandTextCore::RuleVariant
 	# CLASS METHOD FOR A RULE #
 	###########################
 
-	# Returns rule name, in +lower_snake_case+, as in file name.
-	# @return [Symbol] rule name, in +lower_snake_case+, as in file name
-	# @raise [RuntimeError] called on RuleVariant, or file path not set with
-	#  {RuleVariant#file_path}
-	# @example
-	#  class MyRule < RandTextCore::RuleVariant
-	#      file_path 'rules/my_rule.csv'
-	#  end
-	#  
-	#  MyRule.rule_name	#=> :my_rule
-	def self.rule_name
-		if self == RandTextCore::RuleVariant
-			raise "class RuleVariant does not represent any rule"
-		end
-		unless @rule_name
-			raise "file path not set for class #{self}"
-		end
-		@rule_name
-	end
-
 	# Returns rule name, in +UpperCamelCase+, as in file name.
 	# @return [Symbol] rule name, in +UpperCamelCase+, as in file name
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
@@ -262,15 +242,15 @@ class RandTextCore::RuleVariant
 	#      file_path 'rules/my_rule.csv'
 	#  end
 	#  
-	#  MyRule.picker_name	#=> :MyRule
-	def self.picker_name
+	#  MyRule.rule_name	#=> :MyRule
+	def self.rule_name
 		if self == RandTextCore::RuleVariant
 			raise "class RuleVariant does not represent any rule"
 		end
-		unless @picker_name
+		unless @rule_name
 			raise "file path not set for class #{self}"
 		end
-		@picker_name
+		@rule_name
 	end
 
 	# Returns file path set with {RuleVariant#file_path}.
@@ -289,8 +269,7 @@ class RandTextCore::RuleVariant
 
 	# Set file path.
 	# File path can only be set one time.
-	# The attribute {RuleVariant#rule_name} and {RuleVariant#picker_name} are
-	# inferred from the file name.
+	# The attribute {RuleVariant#rule_name} is inferred from the file name.
 	# File name must be in the format +lower_snake_case.csv+.
 	# @param [#to_str] path path to the CSV file, must end with .csv
 	# @return [String] path to the CSV file (frozen)
@@ -318,8 +297,7 @@ class RandTextCore::RuleVariant
 		unless file_name.valid_csv_file_name?
 			raise ArgumentError, "file #{path} does not have a valid name"
 		end
-		@rule_name = file_name.split('.').first.to_sym
-		@picker_name = @rule_name.to_s.camelize.to_sym
+		@rule_name = file_name.split('.').first.camelize.to_sym
 		@file = path.freeze
 	end
 
@@ -407,12 +385,13 @@ class RandTextCore::RuleVariant
 				define_method(:default_weight) { @attributes[:weight] }
 			elsif @attr_types[attribute].kind_of?(Reference)
 				sym = "default_#{attribute}".to_sym
+				target = @attr_types[attribute].target
 				define_method(sym) do
 					id = @attributes[attribute]
 					if id == 0
 						nil
 					else
-						self.rule(attribute)[@attributes[attribute]]
+						self.rule(target)[@attributes[attribute]]
 					end
 				end
 				private(sym)
@@ -445,7 +424,7 @@ class RandTextCore::RuleVariant
 	private_class_method :headers=
 
 	# Returns a hash map associating attributes' names to their type.
-	# @return [Hash{Symbol=>AttributeType}] hash map associating attributes'
+	# @return [Hash{Symbol => AttributeType}] hash map associating attributes'
 	#  names to their type
 	# @raise [RuntimeError] called on RuleVariant, or attributes' types not yet
 	#  set
@@ -631,8 +610,8 @@ class RandTextCore::RuleVariant
 
 	# Creates a new variant from given row.
 	# @param [CSV::Row] row row from the CSV file.
-	# @param [Hash{Symbol=>AttributeType}] types hash map associating attribute
-	#  names to their types
+	# @param [Hash{Symbol => AttributeType}] types hash map associating
+	#  attribute names to their types
 	# @raise [ArgumentError] invalid row
 	def initialize(row, types)
 		@attributes = {}
@@ -681,7 +660,7 @@ class RandTextCore::RuleVariant
 	#      file_path 'my_rule.csv'
 	#  end
 	#  
-	#  MyRule[1].inspect	#=> '#<my_rule id=1, value="aaa", weight=10>'
+	#  MyRule[1].inspect	#=> '#<MyRule id=1, value="aaa", weight=10>'
 	def inspect
 		"#<#{self.class.rule_name} #{@attributes.keys.map do |k|
 			"#{k}=#{self.send(k.to_sym).inspect}"
