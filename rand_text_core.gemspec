@@ -6,8 +6,7 @@ Gem::Specification.new do |s|
 	s.files			= [
 		'lib/rand_text_core.rb',
 		'lib/rand_text_core/rule_variant.rb',
-		'lib/rand_text_core/refinements.rb',
-		'lib/rand_text_core/refinements/string.rb'
+		'lib/rand_text_core/refinements.rb'
 	]
 	s.summary		= 'Core for writing random text generators in Ruby.'
 	s.description	= 'RandTextCore provides classes to create a random text

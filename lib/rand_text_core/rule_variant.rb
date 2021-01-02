@@ -1,6 +1,6 @@
 require 'csv'
 require_relative '../rand_text_core'
-require_relative 'refinements/string'
+require_relative 'refinements'
 
 # A variant of a rule is a tuple from a CSV file.
 #

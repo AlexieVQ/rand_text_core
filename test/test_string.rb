@@ -4,7 +4,7 @@ require 'simplecov'
 SimpleCov.start
 
 require 'test/unit'
-require_relative '../lib/rand_text_core/refinements/string'
+require_relative '../lib/rand_text_core/refinements'
 
 class TestString < Test::Unit::TestCase
 
