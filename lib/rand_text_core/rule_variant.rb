@@ -435,7 +435,7 @@ class RandTextCore::RuleVariant
 		@attr_types.freeze
 		nil
 	end
-	private_class_method :attr_types=
+	private_class_method :headers=
 
 	# Returns a hash map associating attributes' names to their type.
 	# @return [Hash{Symbol=>AttributeType}] hash map associating attributes'
@@ -456,9 +456,13 @@ class RandTextCore::RuleVariant
 	# Add a row from the file.
 	# @param [CSV::Row] row row to add
 	# @return [self]
-	# @raise [ArgumentError] invalid attributes
+	# @raise [ArgumentError] invalid row or attributes
 	# @raise [RuntimeError] duplicated id
 	def self.add_entity(row)
+		unless row.size == @attr_types.size
+			raise ArgumentError, "wrong number of arguments in tuple #{row} " +
+				"(given #{row.size}, expected #{@attr_types.size})"
+		end
 		entity = new(row)
 		if @variants[entity.id]
 			raise "id #{entity.id} duplicated in rule #{self.rule_name}"
@@ -472,26 +476,30 @@ class RandTextCore::RuleVariant
 	# The class is now considered initialized in regard of
 	# {RuleVariant#initialized?}.
 	# @return [self]
-	# @raise [RuntimeError] wrong number of fields in the row
+	# @raise [RuntimeError] wrong number of fields in the row, or error in a row
 	def self.import
 		@variants = {}
 		CSV.read(
 			self.file,
 			nil_value: '',
 			headers: true,
+			return_headers: true,
 			header_converters: ->(str) do
 				unless str.lower_snake_case?
 					raise "invalid name for attribute\"#{str}\""
 				end
 				str.to_sym
 			end
-		).each do |row|
-			self.headers = row.headers unless @attr_types
-			unless row.size == self.attr_types.size
-				raise "wrong number of arguments in tuple #{row} " +
-					"(given #{row.size}, expected #{self.attr_types.size}"
+		).each_with_index do |row, i|
+			if i == 0
+				self.headers = row.headers
+			else
+				begin
+					self.add_entity(row)
+				rescue ArgumentError => e
+					raise e.message
+				end
 			end
-			self.add_entity(row)
 		end
 		@initialized = true
 		self.freeze
@@ -618,7 +626,7 @@ class RandTextCore::RuleVariant
 	# @param [CSV::Row] row row from the CSV file.
 	# @raise [ArgumentError] invalid row
 	def initialize(row)
-		types = self.class.send(:attr_types)
+		types = self.class.instance_variable_get(:@attr_types)
 		@attributes = {}
 		row.headers.each do |attribute|
 			begin
