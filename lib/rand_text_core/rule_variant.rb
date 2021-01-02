@@ -13,6 +13,147 @@ require_relative 'refinements/string'
 # @author AlexieVQ
 class RandTextCore::RuleVariant
 
+	# Superclass for classes representing attribute types.
+	class AttributeType
+		private_class_method :new
+
+		# Returns the name of the type
+		# @return [String] name of the type
+		def inspect
+			self.class.name.split('::').last
+		end
+
+		alias :to_s :inspect
+	end
+
+	# Type for the 'id' attribute.
+	class Identifier < AttributeType
+		# Returns an instance representing the Identifier type.
+		# @return [Identifier] instance representing the type
+		def self.type
+			@instance ||= self.new
+			@instance
+		end
+	end
+
+	# Type for the 'weight' attribute.
+	class Weight < AttributeType
+		# Returns an instance representing the Weight type.
+		# @returns [Weight] instance representing the type
+		def self.type
+			@instance ||= self.new
+			@instance
+		end
+	end
+
+	# Type for an attribute referencing another rule.
+	class Reference < AttributeType
+		# @see Reference#initialize
+		def self.[](target, type)
+			self.new(target, type)
+		end
+
+		# @return [Symbol] referenced rule
+		attr_reader :target
+
+		# @return [:required, :optional] type of the reference
+		attr_reader :type
+
+		# Creates a type for an attribute referencing given rule.
+		# @param [#to_sym] target name of referenced rule
+		# @param [:required, :optional] +:required+ for a required reference,
+		#  +:optional+ for an optional one
+		# @raise [TypeError] no implicit conversion of target into Symbol
+		# @raise [ArgumentError] wrong type given
+		def initialize(target, type)
+			begin
+				@target = target.to_sym
+			rescue NoMethodError
+				raise TypeError,
+					"no implicit conversion of #{target.class} into Symbol"
+			end
+			unless [:required, :optional].include?(type)
+				raise ArgumentError,
+					"wrong reference type (:required or :optional expected, " +
+					"#{type} given)"
+			end
+			@type = type
+		end
+
+		# Testing if another object is a Reference type referencing the same
+		# rule.
+		# @param [Object] o the object to compare
+		# @return [true, false] +true+ if +o+ is a Reference type referencing
+		#  the same rule, +false+ otherwise
+		def ==(o)
+			o.kind_of?(Reference) && o.target == self.target
+		end
+
+		# Returns a string in the format +"Reference<rule_name, type>"+.
+		# @return [String] string representing the type
+		# @example
+		#  p RandTextCore::RuleVariant::Reference[:my_rule, :optional]
+		#  # Reference<my_rule, optional>
+		def inspect
+			super + "<#{target}, #{type}>"
+		end
+
+		alias :to_s :inspect
+	end
+
+	# Type for an attribute with string values.
+	class StringAttribute < AttributeType
+		# Returns an instance representing the StringAttribute type
+		# @return [StringAttribute] instance representing the StringAttribute
+		#  type
+		def self.type
+			@instance ||= self.new
+			@instance
+		end
+	end
+
+	# Type for an attribute with a set of accepted values.
+	class Enum < AttributeType
+		# @see Enum#initialize
+		def self.[](*values)
+			self.new(*values)
+		end
+
+		# @return [Array<Symbol>] set of accepted values (frozen)
+		attr_reader :values
+
+		# Creates a type for an attribute with a set of accepted values.
+		# @param [Array<#to_sym>] values values accepted by the attribute
+		# @raise [TypeError] no implicit conversion of value into Symbol
+		def initialize(*values)
+			@values = values.map do |value|
+				begin
+					value.to_sym
+				rescue NoMethodError
+					raise TypeError,
+						"no implicit conversion of #{value.class} into Symbol"
+				end
+			end.uniq!.sort!.freeze
+		end
+
+		# Testing if another object is an Enum type with the same set of values.
+		# @param [Object] o the object to compare
+		# @return [true, false] +true+ if +o+ is an Enum type with the same set
+		#  of referenced values, +false+ otherwise
+		def ==(o)
+			o.kind_of?(Enum) && o.values == self.values
+		end
+
+		# Returns a string in the format +"Enum<:value1, :value2, :value3>"+.
+		# @return [String] a string representing the type and its accepted
+		#  values
+		def inspect
+			super + "<#{self.values.map { |v| v.inspect }.join(', ')}>"
+		end
+
+		alias :to_s :inspect
+	end
+
 	using RandTextCore::Refinements
 
 	###########################
