@@ -27,18 +27,18 @@ class RandTextCore::RuleVariant
 
 		alias :to_s :inspect
 
-		# Tests if the type is an integer type.
-		# @return [true, false] +true+ if the type is an integer type, +false+
-		#  otherwise (default)
-		def int_type?
-			false
-		end
-
-		# Tests if the type is an integer type accepting only non-null values
-		# @return [true, false] +true+ if the type only accepts non-null
-		#  integers, +false+ otherwise (default)
-		def non_null_int_type?
-			false
+		# Converts given value into expected type (default, keep it as a
+		# String).
+		# @param [#to_str] value value to convert
+		# @return [Object] converted value
+		# @raise [ArgumentError] invalid value
+		def convert(value)
+			begin
+				value.to_str.freeze
+			rescue NoMethodError
+				raise ArgumentError,
+					"no implicit conversion of #{value.class} into String"
+			end
 		end
 	end
 
@@ -51,16 +51,18 @@ class RandTextCore::RuleVariant
 			@instance
 		end
 
-		# Returns +true+ as identifiers are integers.
-		# @return [true]
-		def int_type?
-			true
-		end
-
-		# Returns +true+ as identifiers cannot be null.
-		# @return [true]
-		def non_null_int_type?
-			true
+		# Converts given value into Integer.
+		# @param [#to_str] value value to convert
+		# @return [Integer] converted value
+		# @raise [ArgumentError] value does not represent a non-null integer
+		def convert(value)
+			int = super(value).to_i
+			if int == 0
+				raise ArgumentError,
+					"wrong value for an id (expected non-null integer, given " +
+					value.inspect
+			end
+			int
 		end
 	end
 
@@ -72,11 +74,13 @@ class RandTextCore::RuleVariant
 			@instance ||= self.new
 			@instance
 		end
-
-		# Returns +true+ as the weight is an integer.
-		# @return [true]
-		def int_type?
-			true
+		
+		# Converts given value into Integer.
+		# @param [#to_str] value value to convert
+		# @return [Integer] converted value
+		# @raise [ArgumentError] no implicit conversion of +value+ into String
+		def convert(value)
+			super(value).to_i
 		end
 	end
 
@@ -114,17 +118,19 @@ class RandTextCore::RuleVariant
 			@type = type
 		end
 
-		# Returns +true+ as references are identifiers.
-		# @return [true]
-		def int_type?
-			true
-		end
-
-		# Tests if the values cannot be +0+, or can.
-		# @return [true, false] +true+ if Reference#type is +:required+, +false+
-		#  if Reference#type is +:optional+
-		def non_null_int_type?
-			type == :required
+		# Converts given value into an Integer.
+		# Does not test if the variant of the target rule exists.
+		# @param [#to_str] value value to convert
+		# @return [Integer] converted value
+		# @raise [ArgumentError] null value for a required reference
+		def convert(value)
+			int = super(value).to_i
+			if type == :required && int == 0
+				raise ArgumentError,
+					"wrong value for a required reference (expected non-null " +
+					"integer, given #{value.inspect})"
+			end
+			int
 		end
 
 		# Testing if another object is a Reference type referencing the same
@@ -181,6 +187,21 @@ class RandTextCore::RuleVariant
 						"no implicit conversion of #{value.class} into Symbol"
 				end
 			end.uniq!.sort!.freeze
+		end
+
+		# Converts given value into expected Symbol.
+		# @param [#to_str] value value to convert
+		# @return [Symbol] converted value
+		# @raise [ArgumentError] non-accepted value
+		def convert(value)
+			str = super(value)
+			unless values.any? { |accepted| accepted.id2name == str }
+				raise ArgumentError,
+					"wrong value for the enum type (expected #{values.map do |v|
+						v.id2name.inspect
+					end.join(', ')}, given #{value}"
+			end
+			str.to_sym
 		end
 
 		# Testing if another object is an Enum type with the same set of values.
@@ -600,35 +621,16 @@ class RandTextCore::RuleVariant
 		types = self.class.send(:attr_types)
 		@attributes = {}
 		row.headers.each do |attribute|
-			if types[attribute].int_type?
-				@attributes[attribute] = row[attribute].to_i
-				if types[attribute].non_null_int_type? &&
-					@attributes[attribute] == 0
-					msg = if attribute == :id
-						"variant with a null id"
-					elsif @attributes[id]
-						"required reference #{attribute} cannot be null for " +
-						"variant of id #{@attributes[id]}"
-					else
-						"required reference #{attribute} cannot be null"
-					end
-					raise ArgumentError, msg
-				end
-			elsif types[attribute].kind_of?(Enum)
-				unless types[attribute].values.any? do |value|
-					value.id2name == row[attribute]
-				end
-					raise ArgumentError,
-						"invalid value #{row[attribute]} for enum attribute" +
-						"#{attribute} #{@attributes[id] ?
-						"for variant of id #{@attributes[id]}" : ""} " +
-						"(expected #{types[attribute].values.map do |v|
-							v.id2name
-						end.join(', ')})"
-				end
-				@attributes[attribute] = row[attribute].to_sym
-			elsif types[attribute].kind_of?(StringAttribute)
-				@attributes[attribute] = row[attribute].freeze
+			begin
+				@attributes[attribute] =
+					types[attribute].convert(row[attribute])
+			rescue ArgumentError => e
+				msg = if @attributes[id]
+					"variant #{@attributes[id]}, "
+				else
+					""
+				end + "attribute #{attribute}: #{e.message}"
+				raise ArgumentError, msg
 			end
 		end
 		@attributes.freeze
