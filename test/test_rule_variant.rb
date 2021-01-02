@@ -26,6 +26,10 @@ class TestRuleVariant < Test::Unit::TestCase
 			file_path TEST_DIR + 'required_references.csv'
 			reference :simple_rule, :simple_rule, :required
 		end
+		@enum_attribute = Class.new(RandTextCore::RuleVariant) do
+			file_path TEST_DIR + 'enum_attribute.csv'
+			enum :enum_attr, :value1, :value2, :value3
+		end
 		@rules_dir1 = [
 			@simple_rule,
 			@weighted_rule,
@@ -244,6 +248,9 @@ class TestRuleVariant < Test::Unit::TestCase
 			RandTextCore::RuleVariant.reference(:simple_rule, :simple_rule)
 		end
 		assert_raise(RuntimeError) do
+			RandTextCore::RuleVariant.enum(:my_rule, :val1, :val2, :val3)
+		end
+		assert_raise(RuntimeError) do
 			RandTextCore::RuleVariant.send(:attr_types)
 		end
 		assert_raise(RuntimeError) { RandTextCore::RuleVariant.each }
@@ -351,6 +358,31 @@ class TestRuleVariant < Test::Unit::TestCase
 			end
 		end
 		assert_raise(TypeError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'enum_attribute.csv'
+				enum 2, :value1, :value2, :value3
+			end
+		end
+		assert_raise(TypeError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'enum_attribute.csv'
+				enum :enum_attr, :value1, 2, :value3
+			end
+		end
+		assert_raise(ArgumentError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'enum_attribute.csv'
+				enum :id, :value1, :value2, :value3
+			end
+		end
+		assert_raise(RuntimeError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'enum_attribute.csv'
+				enum :enum_attr, :value1, :value2, :value3
+				enum :enum_attr, :value4
+			end
+		end
+		assert_raise(TypeError) do
 			@simple_rule.send(:import)
 			@simple_rule[:key]
 		end
@@ -412,6 +444,19 @@ class TestRuleVariant < Test::Unit::TestCase
 			},
 			@required_references.attr_types
 		)
+		@enum_attribute.send(:headers=, [:id, :enum_attr])
+		@enum_attribute.instance_variable_set(:@initialized, true)
+		assert_equal(
+			{
+				id: RandTextCore::RuleVariant::Identifier.type,
+				enum_attr: RandTextCore::RuleVariant::Enum[
+					:value1,
+					:value2,
+					:value3
+				]
+			},
+			@enum_attribute.attr_types
+		)
 	end
 
 	def test_unset_attr_types
@@ -430,16 +475,29 @@ class TestRuleVariant < Test::Unit::TestCase
 		@weighted_rule.send(:import)
 		@optional_references.send(:import)
 		@required_references.send(:import)
+		@enum_attribute.send(:import)
 
 		assert_equal(4, @simple_rule.size)
 		assert_equal(5, @weighted_rule.size)
 		assert_equal(4, @optional_references.size)
 		assert_equal(4, @required_references.size)
+		assert_equal(4, @enum_attribute.size)
 	end
 
 	def test_get
+		@simple_rule.send(:rules=, @rules_dir1)
 		@simple_rule.send(:import)
+		@required_references.send(:rules=, @rules_dir1)
+		@required_references.send(:import)
+		@optional_references.send(:rules=, @rules_dir1)
+		@optional_references.send(:import)
+		@enum_attribute.send(:rules=, @rules_dir1)
+		@enum_attribute.send(:import)
 		assert_equal(1, @simple_rule[1].id)
+		assert_equal("b,b", @simple_rule[2].value)
+		assert_same(@simple_rule[4], @required_references[3].simple_rule)
+		assert_nil(@optional_references[3].simple_rule)
+		assert_equal(:value2, @enum_attribute[4].enum_attr)
 	end
 
 	def test_each_no_block
