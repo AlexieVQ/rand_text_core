@@ -470,7 +470,7 @@ class RandTextCore::RuleVariant
 			raise ArgumentError, "wrong number of arguments in tuple #{row} " +
 				"(given #{row.size}, expected #{@attr_types.size})"
 		end
-		entity = new(row)
+		entity = new(row, @attr_types)
 		if @variants[entity.id]
 			raise "id #{entity.id} duplicated in rule #{self.rule_name}"
 		end
@@ -631,17 +631,18 @@ class RandTextCore::RuleVariant
 
 	# Creates a new variant from given row.
 	# @param [CSV::Row] row row from the CSV file.
+	# @param [Hash{Symbol=>AttributeType}] types hash map associating attribute
+	#  names to their types
 	# @raise [ArgumentError] invalid row
-	def initialize(row)
-		types = self.class.instance_variable_get(:@attr_types)
+	def initialize(row, types)
 		@attributes = {}
 		row.headers.each do |attribute|
 			begin
 				@attributes[attribute] =
 					types[attribute].convert(row[attribute])
 			rescue => e
-				msg = if @attributes[id]
-					"variant #{@attributes[id]}, "
+				msg = if @attributes[:id]
+					"variant #{@attributes[:id]}, "
 				else
 					""
 				end + "attribute #{attribute}: #{e.message}"
