@@ -31,12 +31,13 @@ class RandTextCore::RuleVariant
 		# String).
 		# @param [#to_str] value value to convert
 		# @return [Object] converted value
+		# @raise [TypeError] no implicit conversion of value into String
 		# @raise [ArgumentError] invalid value
 		def convert(value)
 			begin
 				value.to_str.freeze
 			rescue NoMethodError
-				raise ArgumentError,
+				raise TypeError,
 					"no implicit conversion of #{value.class} into String"
 			end
 		end
@@ -54,6 +55,7 @@ class RandTextCore::RuleVariant
 		# Converts given value into Integer.
 		# @param [#to_str] value value to convert
 		# @return [Integer] converted value
+		# @raise [TypeError] no implicit conversion of value into String
 		# @raise [ArgumentError] value does not represent a non-null integer
 		def convert(value)
 			int = super(value).to_i
@@ -78,6 +80,7 @@ class RandTextCore::RuleVariant
 		# Converts given value into Integer.
 		# @param [#to_str] value value to convert
 		# @return [Integer] converted value
+		# @raise [TypeError] no implicit conversion of value into String
 		# @raise [ArgumentError] no implicit conversion of +value+ into String
 		def convert(value)
 			super(value).to_i
@@ -122,6 +125,7 @@ class RandTextCore::RuleVariant
 		# Does not test if the variant of the target rule exists.
 		# @param [#to_str] value value to convert
 		# @return [Integer] converted value
+		# @raise [TypeError] no implicit conversion of value into String
 		# @raise [ArgumentError] null value for a required reference
 		def convert(value)
 			int = super(value).to_i
@@ -134,12 +138,14 @@ class RandTextCore::RuleVariant
 		end
 
 		# Testing if another object is a Reference type referencing the same
-		# rule.
+		# rule with the same type of requirement.
 		# @param [Object] o the object to compare
 		# @return [true, false] +true+ if +o+ is a Reference type referencing
-		#  the same rule, +false+ otherwise
+		#  the same rule with the same type of requirement, +false+ otherwise
 		def ==(o)
-			o.kind_of?(Reference) && o.target == self.target
+			o.kind_of?(Reference) &&
+				o.target == self.target &&
+				o.type == self.type
 		end
 
 		# Returns a string in the format +"Reference<rule_name, type>"+.
@@ -186,12 +192,13 @@ class RandTextCore::RuleVariant
 					raise TypeError,
 						"no implicit conversion of #{value.class} into Symbol"
 				end
-			end.uniq!.sort!.freeze
+			end.uniq.sort.freeze
 		end
 
 		# Converts given value into expected Symbol.
 		# @param [#to_str] value value to convert
 		# @return [Symbol] converted value
+		# @raise [TypeError] no implicit conversion of value into String
 		# @raise [ArgumentError] non-accepted value
 		def convert(value)
 			str = super(value)
@@ -341,7 +348,7 @@ class RandTextCore::RuleVariant
 				"no implicit conversion of #{attribute.class} into Symbol"
 		end
 		if [:id, :weight].include?(attribute)
-			raise "attribute #{attribute} cannot be a reference"
+			raise ArgumentError, "attribute #{attribute} cannot be a reference"
 		end
 		if @attr_types[attribute]
 			raise "type already set for attribute #{attribute}"
@@ -632,7 +639,7 @@ class RandTextCore::RuleVariant
 			begin
 				@attributes[attribute] =
 					types[attribute].convert(row[attribute])
-			rescue ArgumentError => e
+			rescue => e
 				msg = if @attributes[id]
 					"variant #{@attributes[id]}, "
 				else
