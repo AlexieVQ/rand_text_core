@@ -10,4 +10,9 @@ This contains only invalid rules:
 - `duplicated_id` has variants with the same id,
 - `null_id` has a variant with an invalid id,
 - `invalid name` has an invalid file name,
-- `invalid_attr_name` has an attribute with an invalid name.
+- `invalid_attr_name` has an attribute with an invalid name,
+- `invalid_enum_value` has an attribute only accepting following values:
+  - `value1`
+  - `value2`
+  - `value3`
+  and has a value not in this set.

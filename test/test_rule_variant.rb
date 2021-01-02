@@ -589,6 +589,14 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_raise(RuntimeError) { too_much_fields.send(:import) }
 	end
 
+	def test_invalid_enum_value
+		invalid_enum_value = Class.new(RandTextCore::RuleVariant) do
+			file_path INVALID_DIR + 'invalid_enum_value.csv'
+			enum :enum_attr, :value1, :value2, :value3
+		end
+		assert_raise(RuntimeError) { invalid_enum_value.send(:import) }
+	end
+
 	######################
 	# TESTS ON INSTANCES #
 	######################
