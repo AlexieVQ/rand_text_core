@@ -378,7 +378,7 @@ class RandTextCore::RuleVariant
 				"no implicit conversion of #{attribute.class} into Symbol"
 		end
 		if [:id, :weight].include?(attribute)
-			raise "attribute #{attribute} cannot be an enum"
+			raise ArgumentError, "attribute #{attribute} cannot be an enum"
 		end
 		if @attr_types[attribute]
 			raise "type already set for attribute #{attribute}"
