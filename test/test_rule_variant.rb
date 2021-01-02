@@ -20,11 +20,11 @@ class TestRuleVariant < Test::Unit::TestCase
 		end
 		@optional_references = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'optional_references.csv'
-			reference :simple_rule, :simple_rule
+			reference :simple_rule, :simple_rule, :optional
 		end
 		@required_references = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'required_references.csv'
-			reference :simple_rule, :simple_rule
+			reference :simple_rule, :simple_rule, :required
 		end
 		@rules_dir1 = [
 			@simple_rule,
@@ -83,7 +83,7 @@ class TestRuleVariant < Test::Unit::TestCase
 	end
 
 	def test_unset_file_path
-			klass = Class.new(RandTextCore::RuleVariant)
+		klass = Class.new(RandTextCore::RuleVariant)
 		assert_raise(RuntimeError) { klass.file }
 		assert_raise(RuntimeError) { klass.rule_name }
 		assert_raise(RuntimeError) { klass.picker_name }
@@ -120,13 +120,19 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
 				file_path TEST_DIR + 'required_references.csv'
-				reference 4, :simple_rule
+				reference 4, :simple_rule, :required
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
 				file_path TEST_DIR + 'required_references.csv'
-				reference :simple_rule, 5
+				reference :simple_rule, 5, :optional
+			end
+		end
+		assert_raise(ArgumentError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'required_references.csv'
+				reference :simple_rule, :simple_rule, 8
 			end
 		end
 		assert_raise(TypeError) do
@@ -149,11 +155,11 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_equal({}, @simple_rule.references)
 		assert_equal({}, @weighted_rule.references)
 		assert_equal(
-			{ simple_rule: :simple_rule },
+			{ simple_rule: {rule: :simple_rule, type: :required } },
 			@required_references.references
 		)
 		assert_equal(
-			{ simple_rule: :simple_rule },
+			{ simple_rule: {rule: :simple_rule, type: :optional } },
 			@optional_references.references
 		)
 	end
@@ -171,7 +177,7 @@ class TestRuleVariant < Test::Unit::TestCase
 		)
 		@optional_references.send(:attr_types=, [:id, :value, :simple_rule])
 		assert_equal(
-			{ id: :id, value: :string, simple_rule: :reference },
+			{ id: :id, value: :string, simple_rule: :optional_ref },
 			@optional_references.send(:attr_types)
 		)
 		@required_references.send(:attr_types=, [:id, :value, :simple_rule])
@@ -189,13 +195,13 @@ class TestRuleVariant < Test::Unit::TestCase
 		invalid_attr_name = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'invalid_attr_name.csv'
 		end
-		assert_raise(RuntimeError) { invalid_attr_name.send(:import); p invalid_attr_name.send(:attr_types) }
+		assert_raise(RuntimeError) { invalid_attr_name.send(:import) }
 	end
 
 	def test_import
 		@simple_rule.send(:import)
 		@weighted_rule.send(:import)
-		# @optional_references.send(:import)
+		@optional_references.send(:import)
 		@required_references.send(:import)
 	end
 
@@ -318,6 +324,14 @@ class TestRuleVariant < Test::Unit::TestCase
 			assert_respond_to(variant, :weight)
 			assert_respond_to(variant, :simple_rule)
 		end
+		@optional_references.send(:rules=, @rules_dir1)
+		@optional_references.send(:import)
+		@optional_references.each do |variant|
+			assert_respond_to(variant, :id)
+			assert_respond_to(variant, :value)
+			assert_respond_to(variant, :weight)
+			assert_respond_to(variant, :simple_rule)
+		end
 	end
 
 	def test_reference_attributes
@@ -326,6 +340,15 @@ class TestRuleVariant < Test::Unit::TestCase
 		@simple_rule.send(:rules=, @rules_dir1)
 		@simple_rule.send(:import)
 		assert_same(@simple_rule[2], @required_references[1].simple_rule)
+	end
+
+	def test_optional_reference
+		@optional_references.send(:rules=, @rules_dir1)
+		@optional_references.send(:import)
+		@simple_rule.send(:rules=, @rules_dir1)
+		@simple_rule.send(:import)
+		assert_same(@simple_rule[2], @optional_references[1].simple_rule)
+		assert_nil(@optional_references[3].simple_rule)
 	end
 
 	def test_inspect
