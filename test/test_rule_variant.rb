@@ -48,7 +48,6 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_raise(RuntimeError) do
 			RandTextCore::RuleVariant.reference(:simple_rule, :simple_rule)
 		end
-		assert_raise(RuntimeError) { RandTextCore::RuleVariant.references }
 		assert_raise(RuntimeError) do
 			RandTextCore::RuleVariant.send(:attr_types)
 		end
@@ -151,39 +150,51 @@ class TestRuleVariant < Test::Unit::TestCase
 		end
 	end
 
-	def test_references
-		assert_equal({}, @simple_rule.references)
-		assert_equal({}, @weighted_rule.references)
-		assert_equal(
-			{ simple_rule: {rule: :simple_rule, type: :required } },
-			@required_references.references
-		)
-		assert_equal(
-			{ simple_rule: {rule: :simple_rule, type: :optional } },
-			@optional_references.references
-		)
-	end
-
 	def test_attr_types
-		@simple_rule.send(:attr_types=, [:id, :value])
+		@simple_rule.send(:headers=, [:id, :value])
+		@simple_rule.instance_variable_set(:@initialized, true)
 		assert_equal(
-			{ id: :id, value: :string },
-			@simple_rule.send(:attr_types)
+			{
+				id: RandTextCore::RuleVariant::Identifier.type,
+				value: RandTextCore::RuleVariant::StringAttribute.type
+			},
+			@simple_rule.attr_types
 		)
-		@weighted_rule.send(:attr_types=, [:id, :value, :weight])
+		@weighted_rule.send(:headers=, [:id, :value, :weight])
+		@weighted_rule.instance_variable_set(:@initialized, true)
 		assert_equal(
-			{ id: :id, value: :string, weight: :weight },
-			@weighted_rule.send(:attr_types)
+			{
+				id: RandTextCore::RuleVariant::Identifier.type,
+				value: RandTextCore::RuleVariant::StringAttribute.type,
+				weight: RandTextCore::RuleVariant::Weight.type
+			},
+			@weighted_rule.attr_types
 		)
-		@optional_references.send(:attr_types=, [:id, :value, :simple_rule])
+		@optional_references.send(:headers=, [:id, :value, :simple_rule])
+		@optional_references.instance_variable_set(:@initialized, true)
 		assert_equal(
-			{ id: :id, value: :string, simple_rule: :optional_ref },
-			@optional_references.send(:attr_types)
+			{
+				id: RandTextCore::RuleVariant::Identifier.type,
+				value: RandTextCore::RuleVariant::StringAttribute.type,
+				simple_rule: RandTextCore::RuleVariant::Reference[
+					:simple_rule,
+					:optional
+				]
+			},
+			@optional_references.attr_types
 		)
-		@required_references.send(:attr_types=, [:id, :value, :simple_rule])
+		@required_references.send(:headers=, [:id, :value, :simple_rule])
+		@required_references.instance_variable_set(:@initialized, true)
 		assert_equal(
-			{ id: :id, value: :string, simple_rule: :reference },
-			@required_references.send(:attr_types)
+			{
+				id: RandTextCore::RuleVariant::Identifier.type,
+				value: RandTextCore::RuleVariant::StringAttribute.type,
+				simple_rule: RandTextCore::RuleVariant::Reference[
+					:simple_rule,
+					:required
+				]
+			},
+			@required_references.attr_types
 		)
 	end
 
@@ -280,7 +291,7 @@ class TestRuleVariant < Test::Unit::TestCase
 		null_id = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'null_id.csv'
 		end
-		assert_raise(ArgumentError) { null_id.send(:import) }
+		assert_raise(RuntimeError) { null_id.send(:import) }
 	end
 
 	def test_too_few_fields
