@@ -34,6 +34,201 @@ class TestRuleVariant < Test::Unit::TestCase
 		]
 	end
 
+	###################################
+	# TESTS ON ATTRIBUTE_TYPE CLASSES #
+	###################################
+	
+	def test_attribute_type_singletons
+		assert_kind_of(
+			RandTextCore::RuleVariant::Identifier,
+			RandTextCore::RuleVariant::Identifier.type
+		)
+		assert_kind_of(
+			RandTextCore::RuleVariant::Weight,
+			RandTextCore::RuleVariant::Weight.type
+		)
+		assert_kind_of(
+			RandTextCore::RuleVariant::StringAttribute,
+			RandTextCore::RuleVariant::StringAttribute.type
+		)
+	end
+
+	def test_attribute_type_initializations
+		required_reference = RandTextCore::RuleVariant::Reference[
+			:my_rule,
+			:required
+		]
+		assert_equal(:my_rule, required_reference.target)
+		assert_equal(:required, required_reference.type)
+		optional_reference = RandTextCore::RuleVariant::Reference[
+			:my_rule,
+			:optional
+		]
+		assert_equal(:my_rule, optional_reference.target)
+		assert_equal(:optional, optional_reference.type)
+		enum = RandTextCore::RuleVariant::Enum[
+			:value2,
+			:value1,
+			:value3,
+			:value1
+		]
+		assert_equal([
+			:value1,
+			:value2,
+			:value3
+		], enum.values)
+	end
+
+	def test_attribute_type_invalid_initializations
+		assert_raise(TypeError) do
+			RandTextCore::RuleVariant::Reference[84, :required]
+		end
+		assert_raise(ArgumentError) do
+			RandTextCore::RuleVariant::Reference[:my_rule, :optimal]
+		end
+		assert_raise(TypeError) do
+			RandTextCore::RuleVariant::Enum[10, 20, 30]
+		end
+	end
+
+	def test_attribute_type_inspect
+		assert_equal(
+			'Identifier',
+			RandTextCore::RuleVariant::Identifier.type.inspect
+		)
+		assert_equal(
+			'Weight',
+			RandTextCore::RuleVariant::Weight.type.inspect
+		)
+		assert_equal(
+			'Reference<my_rule, optional>',
+			RandTextCore::RuleVariant::Reference[:my_rule, :optional].inspect
+		)
+		assert_equal(
+			'Enum<:value1, :value2, :value3>',
+			RandTextCore::RuleVariant::Enum[:value1, :value2, :value3].inspect
+		)
+		assert_equal(
+			'StringAttribute',
+			RandTextCore::RuleVariant::StringAttribute.type.inspect
+		)
+	end
+
+	def test_attribute_type_convert
+		assert_equal(
+			38,
+			RandTextCore::RuleVariant::Identifier.type.convert('38 ')
+		)
+		assert_equal(
+			5,
+			RandTextCore::RuleVariant::Weight.type.convert(' 5')
+		)
+		assert_equal(
+			0,
+			RandTextCore::RuleVariant::Reference[
+				:my_rule,
+				:optional
+			].convert('0')
+		)
+		assert_equal(
+			5,
+			RandTextCore::RuleVariant::Reference[
+				:my_rule,
+				:required
+			].convert('5')
+		)
+		assert_equal(
+			:value2,
+			RandTextCore::RuleVariant::Enum[
+				:value1,
+				:value2,
+				:value3
+			].convert('value2')
+		)
+		assert_equal(
+			'my string',
+			RandTextCore::RuleVariant::StringAttribute.type.convert('my string')
+		)
+	end
+
+	def test_attribute_type_invalid_convert
+		assert_raise(ArgumentError) do
+			RandTextCore::RuleVariant::Identifier.type.convert('0')
+		end
+		assert_raise(ArgumentError) do
+			RandTextCore::RuleVariant::Reference[
+				:my_rule,
+				:required
+			].convert('0')
+		end
+		assert_raise(ArgumentError) do
+			RandTextCore::RuleVariant::Enum[
+				:value1,
+				:value2,
+				:value3
+			].convert('value4')
+		end
+		assert_raise(TypeError) do
+			RandTextCore::RuleVariant::StringAttribute.type.convert(83)
+		end
+	end
+
+	def test_attribute_type_equal
+		assert_true(
+			RandTextCore::RuleVariant::Identifier.type ==
+			RandTextCore::RuleVariant::Identifier.type
+		)
+		assert_false(
+			RandTextCore::RuleVariant::Identifier.type ==
+			RandTextCore::RuleVariant::Weight.type
+		)
+		assert_true(
+			RandTextCore::RuleVariant::Weight.type ==
+			RandTextCore::RuleVariant::Weight.type
+		)
+		assert_true(
+			RandTextCore::RuleVariant::Reference[:rule1, :optional] ==
+			RandTextCore::RuleVariant::Reference[:rule1, :optional]
+		)
+		assert_false(
+			RandTextCore::RuleVariant::Reference[:rule1, :optional] ==
+			RandTextCore::RuleVariant::Reference[:rule2, :optional]
+		)
+		assert_false(
+			RandTextCore::RuleVariant::Reference[:rule1, :required] ==
+			RandTextCore::RuleVariant::Reference[:rule1, :optional]
+		)
+		assert_true(
+			RandTextCore::RuleVariant::StringAttribute.type ==
+			RandTextCore::RuleVariant::StringAttribute.type
+		)
+		assert_true(
+			RandTextCore::RuleVariant::Enum[
+				:value1,
+				:value3,
+				:value2,
+				:value1
+			] == RandTextCore::RuleVariant::Enum[
+				:value2,
+				:value3,
+				:value1
+			]
+		)
+		assert_false(
+			RandTextCore::RuleVariant::Enum[
+				:value1,
+				:value3,
+				:value2,
+				:value1
+			] == RandTextCore::RuleVariant::Enum[
+				:value2,
+				:value3,
+				:value1,
+				:value4
+			]
+		)
+	end
+
 	##################
 	# TESTS ON CLASS #
 	##################
@@ -52,6 +247,8 @@ class TestRuleVariant < Test::Unit::TestCase
 			RandTextCore::RuleVariant.send(:attr_types)
 		end
 		assert_raise(RuntimeError) { RandTextCore::RuleVariant.each }
+		assert_raise(RuntimeError) { RandTextCore::RuleVariant[1] }
+		assert_raise(RuntimeError) { RandTextCore::RuleVariant.size }
 	end
 
 	def test_rule_name
@@ -134,6 +331,25 @@ class TestRuleVariant < Test::Unit::TestCase
 				reference :simple_rule, :simple_rule, 8
 			end
 		end
+		assert_raise(ArgumentError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'required_references.csv'
+				reference :id, :simple_rule, :required
+			end
+		end
+		assert_raise(ArgumentError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'required_references.csv'
+				reference :weight, :simple_rule, :required
+			end
+		end
+		assert_raise(RuntimeError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'required_references.csv'
+				reference :simple_rule, :simple_rule, :required
+				reference :simple_rule, :simple_rule, :opitonal
+			end
+		end
 		assert_raise(TypeError) do
 			@simple_rule.send(:import)
 			@simple_rule[:key]
@@ -214,6 +430,11 @@ class TestRuleVariant < Test::Unit::TestCase
 		@weighted_rule.send(:import)
 		@optional_references.send(:import)
 		@required_references.send(:import)
+
+		assert_equal(4, @simple_rule.size)
+		assert_equal(5, @weighted_rule.size)
+		assert_equal(4, @optional_references.size)
+		assert_equal(4, @required_references.size)
 	end
 
 	def test_get
@@ -233,8 +454,10 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_equal(4, i)
 	end
 
-	def test_unitialized_each
+	def test_unitialized_rule
 		assert_raise(RuntimeError) { @simple_rule.each }
+		assert_raise(RuntimeError) { @simple_rule[1] }
+		assert_raise(RuntimeError) { @simple_rule.size }
 	end
 
 	def test_rules
