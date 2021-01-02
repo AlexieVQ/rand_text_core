@@ -13,6 +13,8 @@ require_relative 'refinements/string'
 # @author AlexieVQ
 class RandTextCore::RuleVariant
 
+	using RandTextCore::Refinements
+
 	# Superclass for classes representing attribute types.
 	class AttributeType
 		private_class_method :new
@@ -153,8 +155,6 @@ class RandTextCore::RuleVariant
 
 		alias :to_s :inspect
 	end
-
-	using RandTextCore::Refinements
 
 	###########################
 	# CLASS METHOD FOR A RULE #
