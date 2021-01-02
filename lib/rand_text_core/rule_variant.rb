@@ -26,6 +26,20 @@ class RandTextCore::RuleVariant
 		end
 
 		alias :to_s :inspect
+
+		# Tests if the type is an integer type.
+		# @return [true, false] +true+ if the type is an integer type, +false+
+		#  otherwise (default)
+		def int_type?
+			false
+		end
+
+		# Tests if the type is an integer type accepting only non-null values
+		# @return [true, false] +true+ if the type only accepts non-null
+		#  integers, +false+ otherwise (default)
+		def non_null_int_type?
+			false
+		end
 	end
 
 	# Type for the 'id' attribute.
@@ -36,6 +50,18 @@ class RandTextCore::RuleVariant
 			@instance ||= self.new
 			@instance
 		end
+
+		# Returns +true+ as identifiers are integers.
+		# @return [true]
+		def int_type?
+			true
+		end
+
+		# Returns +true+ as identifiers cannot be null.
+		# @return [true]
+		def non_null_int_type?
+			true
+		end
 	end
 
 	# Type for the 'weight' attribute.
@@ -45,6 +71,12 @@ class RandTextCore::RuleVariant
 		def self.type
 			@instance ||= self.new
 			@instance
+		end
+
+		# Returns +true+ as the weight is an integer.
+		# @return [true]
+		def int_type?
+			true
 		end
 	end
 
@@ -80,6 +112,19 @@ class RandTextCore::RuleVariant
 					"#{type} given)"
 			end
 			@type = type
+		end
+
+		# Returns +true+ as references are identifiers.
+		# @return [true]
+		def int_type?
+			true
+		end
+
+		# Tests if the values cannot be +0+, or can.
+		# @return [true, false] +true+ if Reference#type is +:required+, +false+
+		#  if Reference#type is +:optional+
+		def non_null_int_type?
+			type == :required
 		end
 
 		# Testing if another object is a Reference type referencing the same
@@ -259,130 +304,80 @@ class RandTextCore::RuleVariant
 	#  +:optional+ for an optional one
 	# @return [nil]
 	# @raise [TypeError] no implicit conversion for arguments into Symbol
-	# @raise [ArgumentError] wrong argument for +type+
-	# @raise [RuntimeError] called on RuleVariant
+	# @raise [ArgumentError] wrong argument for +type+ or reserved attribute
+	#  (+id+ or +weight+)
+	# @raise [RuntimeError] called on RuleVariant or type already set for
+	#  +attribute+
 	def self.reference(attribute, rule_name, type = :required)
 		if self == RandTextCore::RuleVariant
 			raise "cannot set reference for class RuleVariant"
 		end
-		@references ||= {}
+		@attr_types ||= {}
 		begin
 			attribute = attribute.to_sym
 		rescue NoMethodError
 			raise TypeError,
 				"no implicit conversion of #{attribute.class} into Symbol"
 		end
-		begin
-			rule_name = rule_name.to_sym
-		rescue NoMethodError
-			raise TypeError,
-				"no implicit conversion of #{rule_name.class} into Symbol"
+		if [:id, :weight].include?(attribute)
+			raise "attribute #{attribute} cannot be a reference"
 		end
-		unless [:required, :optional].include?(type)
-			raise ArgumentError,
-				"wrong argument for #{type} " +
-				"(:required or :optional expected, #{type} given)"
+		if @attr_types[attribute]
+			raise "type already set for attribute #{attribute}"
 		end
-		@references[attribute] = { rule: rule_name, type: type }.freeze
+		@attr_types[attribute] = Reference[rule_name, type]
 		nil
-	end
-
-	# Returns a hash map associating attribute names to the names of the rules
-	# they reference and the type of the reference (+:required+ or +:optional).
-	# @return [Hash{Symbol=>Hash{Symbol=>Symbol}}] hash map associating
-	#  attribute names to the names of the rules they reference and the type of
-	#  the reference (frozen)
-	# @raise [RuntimeError] called on RuleVariant
-	# @example
-	#  class MyRule < RandTextCore::RuleVariant
-	#      file_path 'dir/my_rule.csv'
-	#      reference :my_ref, :other_rule, :required
-	#  end
-	#  
-	#  MyRule.references #=> { my_ref: { rule: :other_rule, type: :required } }
-	def self.references
-		if self == RandTextCore::RuleVariant
-			raise "class RuleVariant has no references"
-		end
-		@references ||= {}
-		return self.initialized? ? @references.freeze : @references.clone.freeze
 	end
 
 	# Declares that given attribute only accepts given values.
 	# The values are symbols.
 	# @param [#to_sym] attribute attribute in question
-	# @param [Enumerable<#to_sym>] values accepted values
+	# @param [Array<#to_sym>] values accepted values
 	# @return [nil]
 	# @raise [TypeError] no implicit conversion for arguments into Symbol
-	# @raise [RuntimeError] called on RuleVariant
-	def self.enum(attribute, values)
+	# @raise [ArgumentError] reserved attribute (+id+ or +weight+)
+	# @raise [RuntimeError] called on RuleVariant, or type already set for
+	#  +attribute+
+	def self.enum(attribute, *values)
 		if self == RandTextCore::RuleVariant
 			raise "cannot set enum attribute for class RuleVariant"
 		end
-		unless values.kind_of?(Enumerable)
-			raise TypeError, 
-				"wrong type for enum values (given #{values.class}, " +
-				"expected Enumerable<#to_sym>)"
-		end
+		@attr_types ||= {}
 		begin
 			attribute = attribute.to_sym
 		rescue NoMethodError
 			raise TypeError,
 				"no implicit conversion of #{attribute.class} into Symbol"
 		end
-		@enums ||= {}
-		@enums[attribute] = []
-		values.each do |value|
-			begin
-				value = value.to_sym
-			rescue NoMethodError
-				raise TypeError,
-					"no implicit conversion of #{value.class} into Symbol"
-			end
-			@enums[attribute] << value
+		if [:id, :weight].include?(attribute)
+			raise "attribute #{attribute} cannot be an enum"
 		end
-		@enums[attribute].freeze
+		if @attr_types[attribute]
+			raise "type already set for attribute #{attribute}"
+		end
+		@attr_types[attribute] = Enum[*values]
 		nil
 	end
 
-	# Returns a hash map associating attribute names to accepted values.
-	# @return [Hash{Symbol=>Array<Symbol>}] hash map associating attribute names
-	#  to their accepted values (frozen)
-	# @raise [RuntimeError] called on RuleVariant
-	def self.enums
-		if self == RandTextCore::RuleVariant
-			raise "class RuleVariant has no enums"
-		end
-		@enums ||= {}
-		return self.initialized? ? @enums.freeze : @enums.clone.freeze
-	end
-	private_class_method :enums
-
-	# Set +attr_types+ from given CSV header.
+	# Set attribute types from given CSV header.
 	# @param [Array<Symbol>] header CSV header (names of attributes)
 	# @return [nil]
 	# @raise [ArgumentError] not a valid attribute name
-	# @raise [RuntimeError] no id attribute found
-	def self.attr_types=(header)
-		@attr_types = {}
+	# @raise [RuntimeError] no +id+ attribute found
+	def self.headers=(header)
+		@attr_types ||= {}
 		header.each do |attribute|
 			if attribute == :id
-				@attr_types[attribute] = :id
+				@attr_types[attribute] = Identifier.type
 				define_method(:default_id) { @attributes[:id] }
 				private(:default_id)
 				unless method_defined?(:id)
 					define_method(:id) { self.send(:default_id) }
 				end
 			elsif attribute == :weight
-				@attr_types[attribute] = :weight
+				@attr_types[attribute] = Weight.type
 				define_method(:default_weight) { @attributes[:weight] }
-			elsif self.references.keys.include?(attribute)
-				@attr_types[attribute] = case self.references[attribute][:type]
-				when :required
-					:reference
-				when :optional
-					:optional_ref
-				end
+			elsif @attr_types[attribute].kind_of?(Reference)
 				sym = "default_#{attribute}".to_sym
 				define_method(sym) do
 					id = @attributes[attribute]
@@ -397,8 +392,7 @@ class RandTextCore::RuleVariant
 					define_method(attribute) { self.send(sym) }
 				end
 			else
-				@attr_types[attribute] = self.enums.keys.include?(attribute) ?
-					:enum : :string
+				@attr_types[attribute] ||= StringAttribute.type
 				sym = "default_#{attribute}"
 				define_method(sym) { @attributes[attribute] }
 				private(sym)
@@ -417,32 +411,26 @@ class RandTextCore::RuleVariant
 		unless method_defined?(:weight)
 			define_method(:weight) { self.send(:default_weight) }
 		end
+		@attr_types.freeze
 		nil
 	end
 	private_class_method :attr_types=
 
-	# Returns a hash map associating attributes' names to their types:
-	#  [+:id+] the variant's id
-	#  [+:weight+] the variant's weight
-	#  [+:reference+] a required reference to a variant of another rule
-	#  [+:optional_ref+] an optional reference to a variant of another rule
-	#  [+:enum+] enumerated value
-	#  [+:string+] a string value
-	# @return [Hash{Symbol=>:id,:weight,:reference,:string}] hash map
-	#  associating attributes' names to their type
+	# Returns a hash map associating attributes' names to their type.
+	# @return [Hash{Symbol=>AttributeType}] hash map associating attributes'
+	#  names to their type
 	# @raise [RuntimeError] called on RuleVariant, or attributes' types not yet
 	#  set
 	def self.attr_types
 		if self == RandTextCore::RuleVariant
 			raise "class RuleVariant has no attributes"
 		end
-		unless @attr_types
+		unless self.initialized?
 			name = @rule_name ? "rule #{@rule_name}" : "class #{self}"
 			raise "attributes' types not yet set for #{name}"
 		end
 		@attr_types
 	end
-	private_class_method :attr_types
 
 	# Add a row from the file.
 	# @param [CSV::Row] row row to add
@@ -466,7 +454,6 @@ class RandTextCore::RuleVariant
 	# @raise [RuntimeError] wrong number of fields in the row
 	def self.import
 		@variants = {}
-		@references ||= {}
 		CSV.read(
 			self.file,
 			nil_value: '',
@@ -478,7 +465,7 @@ class RandTextCore::RuleVariant
 				str.to_sym
 			end
 		).each do |row|
-			self.attr_types = row.headers unless @attr_types
+			self.headers = row.headers unless @attr_types
 			unless row.size == self.attr_types.size
 				raise "wrong number of arguments in tuple #{row} " +
 					"(given #{row.size}, expected #{self.attr_types.size}"
@@ -613,28 +600,34 @@ class RandTextCore::RuleVariant
 		types = self.class.send(:attr_types)
 		@attributes = {}
 		row.headers.each do |attribute|
-			if [
-				:id,
-				:reference,
-				:optional_ref,
-				:weight
-			].include?(types[attribute])
+			if types[attribute].int_type?
 				@attributes[attribute] = row[attribute].to_i
-				if [:id, :reference].include?(types[attribute]) &&
+				if types[attribute].non_null_int_type? &&
 					@attributes[attribute] == 0
-					raise ArgumentError,
-						"entity id or required reference can't be 0"
+					msg = if attribute == :id
+						"variant with a null id"
+					elsif @attributes[id]
+						"required reference #{attribute} cannot be null for " +
+						"variant of id #{@attributes[id]}"
+					else
+						"required reference #{attribute} cannot be null"
+					end
+					raise ArgumentError, msg
 				end
-			elsif types[attribute] == :enum
-				unless self.class.enums[attribute].any? do |value|
+			elsif types[attribute].kind_of?(Enum)
+				unless types[attribute].values.any? do |value|
 					value.id2name == row[attribute]
 				end
 					raise ArgumentError,
-						"invalid value #{row[attribute]} for attribute " +
-							"#{attribute}"
+						"invalid value #{row[attribute]} for enum attribute" +
+						"#{attribute} #{@attributes[id] ?
+						"for variant of id #{@attributes[id]}" : ""} " +
+						"(expected #{types[attribute].values.map do |v|
+							v.id2name
+						end.join(', ')})"
 				end
 				@attributes[attribute] = row[attribute].to_sym
-			elsif types[attribute] == :string
+			elsif types[attribute].kind_of?(StringAttribute)
 				@attributes[attribute] = row[attribute].freeze
 			end
 		end
