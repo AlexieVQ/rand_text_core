@@ -501,6 +501,53 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_raise(RuntimeError) { @simple_rule.size }
 	end
 
+	def test_snapshot
+		simple_rule = Class.new(RandTextCore::RuleVariant) do
+			attr_accessor :my_var
+
+			file_path TEST_DIR + 'simple_rule.csv'
+
+			def init
+				@my_var = 0
+			end
+		end
+		simple_rule.send(:import)
+		simple_rule[1].my_var = 2
+		snapshot = simple_rule.current_state
+		simple_rule[1].my_var += 1
+		assert_equal(3, simple_rule[1].my_var)
+		simple_rule.restore(snapshot)
+		assert_equal(2, simple_rule[1].my_var)
+	end
+
+	def test_invalid_snapshot
+		@simple_rule.send(:import)
+		@weighted_rule.send(:import)
+		simple_rule_state = @simple_rule.current_state
+		assert_raise(ArgumentError) do
+			@weighted_rule.restore(simple_rule_state)
+		end
+		assert_raise(TypeError) do
+			@simple_rule.restore(3)
+		end
+	end
+
+	def test_reset
+		simple_rule = Class.new(RandTextCore::RuleVariant) do
+			attr_accessor :my_var
+
+			file_path TEST_DIR + 'simple_rule.csv'
+
+			def init
+				@my_var = 0
+			end
+		end
+		simple_rule.send(:import)
+		simple_rule[1].my_var = 2
+		simple_rule.reset
+		assert_equal(0, simple_rule[1].my_var)
+	end
+
 	def test_rules
 		@rules_dir1.each { |rule| rule.send(:rules=, @rules_dir1 ) }
 		@rules_dir1.each do |rule|
