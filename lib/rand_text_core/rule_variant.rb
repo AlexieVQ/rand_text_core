@@ -375,11 +375,6 @@ class RandTextCore::RuleVariant
 		header.each do |attribute|
 			if attribute == :id
 				@attr_types[attribute] = Identifier.type
-				define_method(:default_id) { @attributes[:id] }
-				private(:default_id)
-				unless method_defined?(:id)
-					define_method(:id) { self.send(:default_id) }
-				end
 			elsif attribute == :weight
 				@attr_types[attribute] = Weight.type
 				define_method(:default_weight) { @attributes[:weight] }
@@ -415,9 +410,6 @@ class RandTextCore::RuleVariant
 			define_method(:default_weight) { 1 }
 		end
 		private(:default_weight)
-		unless method_defined?(:weight)
-			define_method(:weight) { self.send(:default_weight) }
-		end
 		@attr_types.freeze
 		nil
 	end
@@ -632,6 +624,26 @@ class RandTextCore::RuleVariant
 		self.freeze
 	end
 
+	# Returns the variant's id.
+	# @note It is strong recommended to not override this method, as the
+	#  +id+ attribute must always return the id as it is in the table.
+	# @return [Integer] variant's id, as in the CSV file
+	def id
+		@attributes[:id]
+	end
+
+	# Returns the variant's weight.
+	# Returns +1+ if no weight has been defined.
+	# @note If you want to override this method to calculate the weight
+	#  dynamicly, it is recommended to call the private method :default_weight:
+	#  if you want to get the weight value as it is written in the table. Using
+	#  +super+ is also possible for this particular attribute, but not for
+	#  dynamicly added attributes from the CSV file.
+	# @return [Integer] weight of the variant for random picking
+	def weight
+		self.default_weight
+	end
+
 	# Returns rule of given name.
 	# @param [#to_sym] name name of the rule
 	# @return [Class] class extending RuleVariant representing the rule
@@ -649,6 +661,8 @@ class RandTextCore::RuleVariant
 
 	# Returns a human-readable representation of the variant, listing its
 	# attributes.
+	# The attributes are printed as they are stored, ignoring their redefinition
+	# by the user.
 	# @return [String] representation of the variants and its attributes
 	# @example
 	#  # my_rule.csv:
@@ -662,8 +676,8 @@ class RandTextCore::RuleVariant
 	#  
 	#  MyRule[1].inspect	#=> '#<MyRule id=1, value="aaa", weight=10>'
 	def inspect
-		"#<#{self.class.rule_name} #{@attributes.keys.map do |k|
-			"#{k}=#{self.send(k.to_sym).inspect}"
+		"#<#{self.class.rule_name} #{@attributes.map do |k, v|
+			"#{k}=#{v.inspect}"
 		end.join(', ')}>"
 	end
 

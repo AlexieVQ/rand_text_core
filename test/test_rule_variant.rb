@@ -14,9 +14,17 @@ class TestRuleVariant < Test::Unit::TestCase
 	def setup
 		@simple_rule = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'simple_rule.csv'
+
+			def value
+				"value #{id}: #{default_value}"
+			end
 		end
 		@weighted_rule = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'weighted_rule.csv'
+
+			def weight
+				default_weight * 10
+			end
 		end
 		@optional_references = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'optional_references.csv'
@@ -475,22 +483,6 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_equal(4, @enum_attribute.size)
 	end
 
-	def test_get
-		@simple_rule.send(:rules=, @rules_dir1)
-		@simple_rule.send(:import)
-		@required_references.send(:rules=, @rules_dir1)
-		@required_references.send(:import)
-		@optional_references.send(:rules=, @rules_dir1)
-		@optional_references.send(:import)
-		@enum_attribute.send(:rules=, @rules_dir1)
-		@enum_attribute.send(:import)
-		assert_equal(1, @simple_rule[1].id)
-		assert_equal("b,b", @simple_rule[2].value)
-		assert_same(@simple_rule[4], @required_references[3].simple_rule)
-		assert_nil(@optional_references[3].simple_rule)
-		assert_equal(:value2, @enum_attribute[4].enum_attr)
-	end
-
 	def test_each_no_block
 		@simple_rule.send(:import)
 		assert_kind_of(Enumerator, @simple_rule.each)
@@ -623,6 +615,26 @@ class TestRuleVariant < Test::Unit::TestCase
 			assert_respond_to(variant, :weight)
 			assert_respond_to(variant, :simple_rule)
 		end
+	end
+
+	def test_get
+		@simple_rule.send(:rules=, @rules_dir1)
+		@simple_rule.send(:import)
+		@weighted_rule.send(:rules=, @rules_dir1)
+		@weighted_rule.send(:import)
+		@required_references.send(:rules=, @rules_dir1)
+		@required_references.send(:import)
+		@optional_references.send(:rules=, @rules_dir1)
+		@optional_references.send(:import)
+		@enum_attribute.send(:rules=, @rules_dir1)
+		@enum_attribute.send(:import)
+		assert_equal(1, @simple_rule[1].id)
+		assert_equal("value 2: b,b", @simple_rule[2].value)
+		assert_equal(1, @simple_rule[3].weight)
+		assert_equal(30, @weighted_rule[3].weight)
+		assert_same(@simple_rule[4], @required_references[3].simple_rule)
+		assert_nil(@optional_references[3].simple_rule)
+		assert_equal(:value2, @enum_attribute[4].enum_attr)
 	end
 
 	def test_reference_attributes
