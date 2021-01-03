@@ -159,17 +159,15 @@ class TestSymbolTable < Test::Unit::TestCase
 
 	def test_snapshot
 		@rules[:SimpleRule][1].my_var = 3
-		snapshot = @symbol_table.current_state
+		@symbol_table[:my_variant] = @rules[:SimpleRule][1]
+		snapshot = @symbol_table.send(:current_state)
 		@rules[:SimpleRule][1].my_var = 7
 		assert_equal(7, @symbol_table.rule(:SimpleRule)[1].my_var)
-		@symbol_table.restore(snapshot)
+		assert_equal(7, @symbol_table[:my_variant].my_var)
+		@symbol_table.send(:restore, snapshot)
 		assert_equal(3, @rules[:SimpleRule][1].my_var)
-	end
-
-	def test_invalid_restore
-		assert_raise(TypeError) { @symbol_table.restore(3) }
-		snapshot = RandTextCore::SymbolTable.new({}, []).current_state
-		assert_raise(ArgumentError) { @symbol_table.restore(snapshot)}
+		assert_equal(3, @symbol_table[:my_variant].my_var)
+		assert_same(@rules[:SimpleRule][1], @symbol_table[:my_variant])
 	end
 
 	def test_invalid_initialize
