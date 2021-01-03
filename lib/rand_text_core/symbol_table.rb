@@ -8,6 +8,24 @@ require_relative 'symbol_exception'
 # @author AlexieVQ
 class RandTextCore::SymbolTable
 
+	# Class storing a snapshot of the table's symbols at a precise moment.
+	class Snapshot
+
+		# @return [SymbolTable] concerned symbol table
+		attr_reader :table
+
+		# @return [Object] state of the table
+		attr_reader :state
+
+		# Creates a new snapshot for given table's state.
+		# @param [SymbolTable] table table to store state
+		# @param [Object] state state of the rule
+		def initialize(table, state)
+			@table, @state = table, state
+		end
+
+	end
+
 	# @return [Hash{Symbol => Proc}] hash map storing functions used in the
 	#  expansion language (frozen)
 	attr_reader :functions
@@ -58,7 +76,7 @@ class RandTextCore::SymbolTable
 			end
 		end
 		@functions = functions.clone.freeze
-		@rules = rules.reduce({}) do |hash, rule|
+		@rules = rules.each_with_object({}) do |rule, hash|
 			if hash[rule.rule_name]
 				raise "two rules with the same name #{rule.rule_name.inspect}"
 			end
@@ -118,6 +136,45 @@ class RandTextCore::SymbolTable
 		self[name]
 	end
 
+	# Returns rule of given name.
+	# @param [#to_sym] name variable name
+	# @return [Class] rule of given name
+	# @raise [TypeError] no implicit conversion of name into Symbol
+	# @raise [KeyError] no variable of given name
+	def rule(name)
+		begin
+			name = name.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{name.class} into Symbol"
+		end
+		@rules.fetch(name)
+	end
+
+	# Call function of given name with given arguments.
+	# @param [#to_sym] name variable name
+	# @param [Array<#to_str>] args arguments
+	# @return function's return
+	# @raise [TypeError] wrong types
+	# @raise [KeyError] no function of given name
+	def call(name, *args)
+		begin
+			name = name.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{name.class} into Symbol"
+		end
+		args = args.map do |arg|
+			begin
+				arg.to_str
+			rescue NoMethodError
+				raise TypeError,
+					"no implicit conversion of #{arg.class} into String"
+			end
+		end
+		@functions[name].call(*args, self)
+	end
+
 	# Add a variable with given name that stores given value.
 	# @param [#to_sym] name variable name
 	# @param [Object] value value to store
@@ -139,10 +196,45 @@ class RandTextCore::SymbolTable
 		@variables[name] = value
 	end
 
-	# Clear the table, without loosing the functions and the rules.
+	# Creates a Snapshot of the current state of the table, i.e. the current
+	# state of its symbols and its rules.
+	# @return [Snapshot] snapshot of the table
+	def current_state
+		Snapshot.new(self, {
+			variables: @variables.keys.each_with_object({}) do |symbol, hash|
+				hash[symbol] = @variables[symbol].clone
+			end,
+			rules: @rules.values.map { |rule| rule.current_state }
+		}.freeze)
+	end
+
+	# Restore the table's state from given Snapshot.
+	# @param [Snapshot] snapshot snapshot to restore
+	# @return [self]
+	# @raise [TypeError] wrong argument type
+	def restore(snapshot)
+		unless snapshot.kind_of?(Snapshot)
+			raise TypeError,
+				"wrong type for argument (expected SymbolTable::Snapshot, " +
+				"given #{snapshot.class})"
+		end
+		unless snapshot.table == self
+			raise ArgumentError,
+				"snapshot of wrong table"
+		end
+		@variables = snapshot.state[:variables].clone
+		snapshot.state[:rules].each do |snapshot|
+			snapshot.rule.restore(snapshot)
+		end
+		self
+	end
+
+	# Clear variables and send {RuleVariant#reset} to all rules.
 	# @return [self]
 	def clear
 		@variables = {}
+		@rules.each_value { |rule| rule.reset }
+		self
 	end
 
 end
