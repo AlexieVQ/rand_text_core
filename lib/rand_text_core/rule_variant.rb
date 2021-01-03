@@ -229,6 +229,25 @@ class RandTextCore::RuleVariant
 		alias :to_s :inspect
 	end
 
+	# Class storing a snapshot of the rule's variants and their instance
+	# variables at a precise moment.
+	class Snapshot
+
+		# @return [Class] concerned rule
+		attr_reader :rule
+
+		# @return [Object] state of the rule
+		attr_reader :state
+
+		# Creates a new snapshot for given rule's state.
+		# @param [Class] rule rule to store state
+		# @param [Object] state state of the rule
+		def initialize(rule, state)
+			@rule, @state = rule, state
+		end
+
+	end
+
 	###########################
 	# CLASS METHOD FOR A RULE #
 	###########################
@@ -421,13 +440,7 @@ class RandTextCore::RuleVariant
 	# @raise [RuntimeError] called on RuleVariant, or attributes' types not yet
 	#  set
 	def self.attr_types
-		if self == RandTextCore::RuleVariant
-			raise "class RuleVariant has no attributes"
-		end
-		unless self.initialized?
-			name = @rule_name ? "rule #{@rule_name}" : "class #{self}"
-			raise "attributes' types not yet set for #{name}"
-		end
+		self.require_initialized_rule
 		@attr_types
 	end
 
@@ -480,7 +493,6 @@ class RandTextCore::RuleVariant
 			end
 		end
 		@initialized = true
-		self.freeze
 		self
 	end
 	private_class_method :import
@@ -493,16 +505,6 @@ class RandTextCore::RuleVariant
 		@initialized || false
 	end
 
-	# Prevents further modifications to the class.
-	# @return [self]
-	def self.freeze
-		super
-		@variants.freeze
-		@attr_types.freeze
-		@references.freeze
-		self
-	end
-
 	# Returns variant of given id.
 	# @param [#to_int] id id of the variant 
 	# @return [RuleVariant] variant of given id
@@ -510,12 +512,7 @@ class RandTextCore::RuleVariant
 	# @raise [TypeError] no implicit conversion of +id+ into Integer
 	# @raise [RuntimeError] called on RuleVariant or class not initialized
 	def self.[](id)
-		if self == RandTextCore::RuleVariant
-			raise "class RuleVariant has no data"
-		end
-		unless self.initialized?
-			raise "class #{self} not initialized"
-		end
+		self.require_initialized_rule
 		begin
 			@variants.fetch(id.to_int)
 		rescue NoMethodError
@@ -531,12 +528,7 @@ class RandTextCore::RuleVariant
 	#  enumerator on the variants of the rule
 	# @raise [RuntimeError] called on RuleVariant or class not initialized
 	def self.each
-		if self == RandTextCore::RuleVariant
-			raise "class RuleVariant has no data"
-		end
-		unless self.initialized?
-			raise "class #{self} not initialized"
-		end
+		self.require_initialized_rule
 		if block_given?
 			@variants.values.each { |variant| yield variant }
 			self
@@ -549,12 +541,7 @@ class RandTextCore::RuleVariant
 	# @returns [Integer] number of variants of the rule
 	# @raise [RuntimeError] called on RuleVariant, or class not initialized
 	def self.size
-		if self == RandTextCore::RuleVariant
-			raise "class RuleVariant has no data"
-		end
-		unless self.initialized?
-			raise "class #{self} not initialized"
-		end
+		self.require_initialized_rule
 		return @variants.size
 	end
 
@@ -577,6 +564,59 @@ class RandTextCore::RuleVariant
 		end
 		rule
 	end
+
+	# Calls {RuleVariant#init} on each variant.
+	# @return [self]
+	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
+	def self.reset
+		self.require_initialized_rule
+		@variants.each_value { |variant| variant.init }
+		self
+	end
+
+	# Creates a Snapshot of the current state of the rule, i.e. the current
+	# state of its variants' instance variables.
+	# @return [Snapshot] snapshot of the rule
+	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
+	def self.current_state
+		self.require_initialized_rule
+		Snapshot.new(self, @variants.keys.each_with_object({}) do |id, hash|
+			hash[id] = @variants[id].clone
+		end.freeze)
+	end
+
+	# Restore the rule's state from given Snapshot.
+	# @param [Snapshot] snapshot snapshot to restore
+	# @return [self]
+	# @raise [TypeError] wrong argument type
+	# @raise [ArgumentError] snapshot of wrong rule
+	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
+	def self.restore(snapshot)
+		self.require_initialized_rule
+		unless snapshot.kind_of?(Snapshot)
+			raise TypeError,
+				"wrong type for argument (expected RuleVariant::Snapshot, " +
+				"given #{snapshot.class})"
+		end
+		unless snapshot.rule == self
+			raise ArgumentError,
+				"snapshot of wrong rule (expected #{self.rule_name}, given " +
+				"#{snapshot.rule.rule_name})"
+		end
+		@variants = snapshot.state
+	end
+	
+	# Raises RuntimeError if current class is RuleVariant, or if the rule is
+	# not initiaziled.
+	def self.require_initialized_rule
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant has no data"
+		end
+		unless self.initialized?
+			raise "class #{self} not initialized"
+		end
+	end
+	private_class_method :require_initialized_rule
 
 	private_class_method :new
 
@@ -601,6 +641,9 @@ class RandTextCore::RuleVariant
 	#                  Integer for id, reference and weight
 
 	# Creates a new variant from given row.
+	# @note It is strongly recommended to not override this method. If you want
+	#  to add a special behaviour at initialization, override
+	#  {RuleVariant#init}.
 	# @param [CSV::Row] row row from the CSV file.
 	# @param [Hash{Symbol => AttributeType}] types hash map associating
 	#  attribute names to their types
@@ -621,11 +664,11 @@ class RandTextCore::RuleVariant
 			end
 		end
 		@attributes.freeze
-		self.freeze
+		init
 	end
 
 	# Returns the variant's id.
-	# @note It is strong recommended to not override this method, as the
+	# @note It is strongly recommended to not override this method, as the
 	#  +id+ attribute must always return the id as it is in the table.
 	# @return [Integer] variant's id, as in the CSV file
 	def id
@@ -657,6 +700,12 @@ class RandTextCore::RuleVariant
 				"no implicit conversion of #{name.class} into Symbol"
 		end
 		self.class.rule(name)
+	end
+
+	# Override this method to add a specific behaviour when initializing the
+	# variant or resetting the symbol table.
+	# Does nothing by default.
+	def init
 	end
 
 	# Returns a human-readable representation of the variant, listing its
