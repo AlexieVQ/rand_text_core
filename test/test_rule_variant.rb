@@ -503,7 +503,8 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def test_snapshot
 		simple_rule = Class.new(RandTextCore::RuleVariant) do
-			attr_accessor :my_var
+			attr_accessor :var1
+			attr_accessor :var2
 
 			file_path TEST_DIR + 'simple_rule.csv'
 
@@ -512,24 +513,16 @@ class TestRuleVariant < Test::Unit::TestCase
 			end
 		end
 		simple_rule.send(:import)
-		simple_rule[1].my_var = 2
-		snapshot = simple_rule.current_state
-		simple_rule[1].my_var += 1
-		assert_equal(3, simple_rule[1].my_var)
-		simple_rule.restore(snapshot)
-		assert_equal(2, simple_rule[1].my_var)
-	end
-
-	def test_invalid_snapshot
-		@simple_rule.send(:import)
-		@weighted_rule.send(:import)
-		simple_rule_state = @simple_rule.current_state
-		assert_raise(ArgumentError) do
-			@weighted_rule.restore(simple_rule_state)
-		end
-		assert_raise(TypeError) do
-			@simple_rule.restore(3)
-		end
+		simple_rule[1].var1 = 2
+		snapshot = simple_rule.send(:current_state)
+		simple_rule[1].var1 += 1
+		simple_rule[1].var2 = 8
+		assert_equal(3, simple_rule[1].var1)
+		assert_equal(8, simple_rule[1].var2)
+		simple_rule.send(:restore, snapshot)
+		assert_equal(2, simple_rule[1].var1)
+		assert_nil(simple_rule[1].var2)
+		assert_false(simple_rule[1].instance_variable_defined?(:@var2))
 	end
 
 	def test_reset
@@ -546,6 +539,11 @@ class TestRuleVariant < Test::Unit::TestCase
 		simple_rule[1].my_var = 2
 		simple_rule.reset
 		assert_equal(0, simple_rule[1].my_var)
+	end
+
+	def test_clone
+		@simple_rule.send(:import)
+		assert_same(@simple_rule[1], @simple_rule[1].clone)
 	end
 
 	def test_rules
