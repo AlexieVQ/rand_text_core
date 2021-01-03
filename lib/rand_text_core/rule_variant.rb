@@ -229,25 +229,6 @@ class RandTextCore::RuleVariant
 		alias :to_s :inspect
 	end
 
-	# Class storing a snapshot of the rule's variants and their instance
-	# variables at a precise moment.
-	class Snapshot
-
-		# @return [Class] concerned rule
-		attr_reader :rule
-
-		# @return [Object] state of the rule
-		attr_reader :state
-
-		# Creates a new snapshot for given rule's state.
-		# @param [Class] rule rule to store state
-		# @param [Object] state state of the rule
-		def initialize(rule, state)
-			@rule, @state = rule, state
-		end
-
-	end
-
 	###########################
 	# CLASS METHOD FOR A RULE #
 	###########################
@@ -574,37 +555,23 @@ class RandTextCore::RuleVariant
 		self
 	end
 
-	# Creates a Snapshot of the current state of the rule, i.e. the current
+	# Creates a snapshot of the current state of the rule, i.e. the current
 	# state of its variants' instance variables.
-	# @return [Snapshot] snapshot of the rule
-	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
 	def self.current_state
-		self.require_initialized_rule
-		Snapshot.new(self, @variants.keys.each_with_object({}) do |id, hash|
-			hash[id] = @variants[id].clone
-		end.freeze)
+		@variants.keys.each_with_object({}) do |id, hash|
+			hash[id] = @variants[id].send(:current_state)
+		end
 	end
+	private_class_method :current_state
 
-	# Restore the rule's state from given Snapshot.
-	# @param [Snapshot] snapshot snapshot to restore
-	# @return [self]
-	# @raise [TypeError] wrong argument type
-	# @raise [ArgumentError] snapshot of wrong rule
-	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
-	def self.restore(snapshot)
-		self.require_initialized_rule
-		unless snapshot.kind_of?(Snapshot)
-			raise TypeError,
-				"wrong type for argument (expected RuleVariant::Snapshot, " +
-				"given #{snapshot.class})"
+	# Restore the rule's state.
+	def self.restore(state)
+		state.each do |id, state|
+			@variants[id].send(:restore, state)
 		end
-		unless snapshot.rule == self
-			raise ArgumentError,
-				"snapshot of wrong rule (expected #{self.rule_name}, given " +
-				"#{snapshot.rule.rule_name})"
-		end
-		@variants = snapshot.state
+		self
 	end
+	private_class_method :restore
 	
 	# Raises RuntimeError if current class is RuleVariant, or if the rule is
 	# not initiaziled.
@@ -667,6 +634,8 @@ class RandTextCore::RuleVariant
 		init
 	end
 
+	# alias :rule :class
+
 	# Returns the variant's id.
 	# @note It is strongly recommended to not override this method, as the
 	#  +id+ attribute must always return the id as it is in the table.
@@ -708,6 +677,14 @@ class RandTextCore::RuleVariant
 	def init
 	end
 
+	# Returns itself, as variants cannot be cloned.
+	# @return [self]
+	def clone
+		self
+	end
+
+	alias :dup :clone
+
 	# Returns a human-readable representation of the variant, listing its
 	# attributes.
 	# The attributes are printed as they are stored, ignoring their redefinition
@@ -731,5 +708,27 @@ class RandTextCore::RuleVariant
 	end
 
 	alias :to_s :inspect
+
+	private
+
+	# Returns current state of the variant (instance variables).
+	def current_state
+		self.instance_variables.each_with_object({}) do |symbol, hash|
+			hash[symbol] = self.instance_variable_get(symbol)
+		end
+	end
+
+	# Restore a previous state of the variant.
+	def restore(state)
+		state.each do |symbol, value|
+			self.instance_variable_set(symbol, value)
+		end
+		self.instance_variables.each do |symbol|
+			unless state.key?(symbol)
+				self.remove_instance_variable(symbol)
+			end
+		end
+		self
+	end
 
 end
