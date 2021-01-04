@@ -253,6 +253,26 @@ class RandTextCore::RuleVariant
 		@rule_name
 	end
 
+	# Returns rule name, in +lower_snake_case+, as in file name.
+	# @return [Symbol] rule name, in +lower_snake_case+, as in file name
+	# @raise [RuntimeError] called on RuleVariant, or file path not set with
+	#  {RuleVariant#file_path}
+	# @example
+	#  class MyRule < RandTextCore::RuleVariant
+	#      file_path 'rules/my_rule.csv'
+	#  end
+	#  
+	#  MyRule.lower_snake_case_name	#=> :my_rule
+	def self.lower_snake_case_name
+		if self == RandTextCore::RuleVariant
+			raise "class RuleVariant does not represent any rule"
+		end
+		unless @lower_snake_case_name
+			raise "file path not set for class #{self}"
+		end
+		@lower_snake_case_name
+	end
+
 	# Returns file path set with {RuleVariant#file_path}.
 	# @return [String] file path (frozen)
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
@@ -297,7 +317,8 @@ class RandTextCore::RuleVariant
 		unless file_name.valid_csv_file_name?
 			raise ArgumentError, "file #{path} does not have a valid name"
 		end
-		@rule_name = file_name.split('.').first.camelize.to_sym
+		@lower_snake_case_name = file_name.split('.').first.to_sym
+		@rule_name = @lower_snake_case_name.id2name.camelize.to_sym
 		@file = path.freeze
 	end
 
@@ -317,6 +338,9 @@ class RandTextCore::RuleVariant
 	def self.reference(attribute, rule_name, type = :required)
 		if self == RandTextCore::RuleVariant
 			raise "cannot set reference for class RuleVariant"
+		end
+		if self.initialized?
+			raise "rule #{self.rule_name} has already been initialized"
 		end
 		@attr_types ||= {}
 		begin
@@ -348,6 +372,9 @@ class RandTextCore::RuleVariant
 		if self == RandTextCore::RuleVariant
 			raise "cannot set enum attribute for class RuleVariant"
 		end
+		if self.initialized?
+			raise "rule #{self.rule_name} has already been initialized"
+		end
 		@attr_types ||= {}
 		begin
 			attribute = attribute.to_sym
@@ -362,6 +389,57 @@ class RandTextCore::RuleVariant
 			raise "type already set for attribute #{attribute}"
 		end
 		@attr_types[attribute] = Enum[*values]
+		nil
+	end
+
+	# Declares that a variant of current rule is associated with several
+	# variants of a given rule.
+	# For a rule +TargetRule+, this will creates a private method
+	# +default_target_rule+ returning an array of all the associated variants,
+	# and an overridable public method +target_rule+ picking one of the variants
+	# randomly. 
+	# @param [#to_sym] target name of the associated rule
+	# @param [#to_sym] attribute attribute of target referencing current rule
+	# @param [:required, :optional] type +:optional+ allows for a variant to not
+	#  have any associated variant in the target rule; in this case the
+	#  dynamicly defined public method will return +nil+
+	# @return [nil]
+	# @raise [TypeError] no implicit conversion for arguments into Symbol
+	# @raise [ArgumentError] wrong value for +type+
+	# @raise [RuntimeError] called on RuleVariant, or relation already set for
+	#  target rule
+	def self.has_many(target, attribute, type)
+		if self == RandTextCore::RuleVariant
+			raise "cannot set assosiation with class RuleVariant"
+		end
+		if self.initialized?
+			raise "rule #{self.rule_name} has already been initialized"
+		end
+		begin
+			target = target.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{target.class} into Symbol"
+		end
+		begin
+			attribute = attribute.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{attribute.class} into Symbol"
+		end
+		unless [:required, :optional].include?(type)
+			raise ArgumentError,
+				"wrong type argument (expected :required or :optional, given " +
+				type.to_s
+		end
+		@relations ||= {}
+		if @relations[target]
+			raise "relation already set with rule #{target}"
+		end
+		@relations[target] = {
+			attribute: attribute,
+			type: type
+		}.freeze
 		nil
 	end
 
@@ -474,6 +552,7 @@ class RandTextCore::RuleVariant
 			end
 		end
 		@initialized = true
+		@relations.freeze
 		self
 	end
 	private_class_method :import
