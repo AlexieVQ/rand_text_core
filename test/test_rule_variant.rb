@@ -14,6 +14,8 @@ class TestRuleVariant < Test::Unit::TestCase
 	def setup
 		@simple_rule = Class.new(RandTextCore::RuleVariant) do
 			file_path TEST_DIR + 'simple_rule.csv'
+			has_many :OptionalReferences, :simple_rule, :optional
+			has_many :RequiredReferences, :simple_rule, :required
 
 			def value
 				"value #{id}: #{default_value}"
@@ -247,6 +249,9 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def test_rule_variant_class_calls
 		assert_raise(RuntimeError) { RandTextCore::RuleVariant.rule_name }
+		assert_raise(RuntimeError) do
+			RandTextCore::RuleVariant.lower_snake_case_name
+		end
 		assert_raise(RuntimeError) { RandTextCore::RuleVariant.file }
 		assert_raise(RuntimeError) do 
 			RandTextCore::RuleVariant.file_path(TEST_DIR + 'simple_rule.csv')
@@ -256,6 +261,9 @@ class TestRuleVariant < Test::Unit::TestCase
 		end
 		assert_raise(RuntimeError) do
 			RandTextCore::RuleVariant.enum(:my_rule, :val1, :val2, :val3)
+		end
+		assert_raise(RuntimeError) do
+			RandTextCore::RuleVariant.has_many(:MyRule, :this_rule, :required)
 		end
 		assert_raise(RuntimeError) do
 			RandTextCore::RuleVariant.send(:attr_types)
@@ -270,6 +278,16 @@ class TestRuleVariant < Test::Unit::TestCase
 		assert_equal(:WeightedRule, @weighted_rule.rule_name)
 		assert_equal(:OptionalReferences, @optional_references.rule_name)
 		assert_equal(:RequiredReferences, @required_references.rule_name)
+		assert_equal(:simple_rule, @simple_rule.lower_snake_case_name)
+		assert_equal(:weighted_rule, @weighted_rule.lower_snake_case_name)
+		assert_equal(
+			:optional_references,
+			@optional_references.lower_snake_case_name
+		)
+		assert_equal(
+			:required_references,
+			@required_references.lower_snake_case_name
+		)
 	end
 
 	def test_file_name
@@ -289,6 +307,7 @@ class TestRuleVariant < Test::Unit::TestCase
 		klass = Class.new(RandTextCore::RuleVariant)
 		assert_raise(RuntimeError) { klass.file }
 		assert_raise(RuntimeError) { klass.rule_name }
+		assert_raise(RuntimeError) { klass.lower_snake_case_name }
 	end
 
 	def test_non_existing_file
@@ -379,6 +398,31 @@ class TestRuleVariant < Test::Unit::TestCase
 				file_path TEST_DIR + 'enum_attribute.csv'
 				enum :enum_attr, :value1, :value2, :value3
 				enum :enum_attr, :value4
+			end
+		end
+		assert_raise(TypeError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'simple_rule.csv'
+				has_many 8, :simple_rule, :optional
+			end
+		end
+		assert_raise(TypeError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'simple_rule.csv'
+				has_many :RequiredReferences, 7, :required
+			end
+		end
+		assert_raise(ArgumentError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'simple_rule.csv'
+				has_many :RequiredReferences, :simple_rule, :optimal
+			end
+		end
+		assert_raise(RuntimeError) do
+			Class.new(RandTextCore::RuleVariant) do
+				file_path TEST_DIR + 'simple_rule.csv'
+				has_many :RequiredReferences, :simple_rule, :required
+				has_many :RequiredReferences, :attribute, :optional
 			end
 		end
 		assert_raise(TypeError) do
@@ -569,6 +613,30 @@ class TestRuleVariant < Test::Unit::TestCase
 		end
 	end
 
+	def test_already_initialized_rule
+		simple_rule = Class.new(RandTextCore::RuleVariant) do
+			file_path TEST_DIR + 'simple_rule.csv'
+		end
+		simple_rule.send(:import)
+		assert_raise(RuntimeError) do
+			simple_rule.has_many(:OptionalReferences, :simple_rule, :optional)
+		end
+		required_references = Class.new(RandTextCore::RuleVariant) do
+			file_path TEST_DIR + 'required_references.csv'
+		end
+		required_references.send(:import)
+		assert_raise(RuntimeError) do
+			required_references.reference(:SimpleRule, :simple_rule, :required)
+		end
+		enum_attribute = Class.new(RandTextCore::RuleVariant) do
+			file_path TEST_DIR + 'enum_attribute.csv'
+		end
+		enum_attribute.send(:import)
+		assert_raise(RuntimeError) do
+			enum_attribute.enum(:enum_attr, :value1, :value2, :value3)
+		end
+	end
+
 	def test_no_id
 		no_id = Class.new(RandTextCore::RuleVariant) do
 			file_path INVALID_DIR + 'no_id.csv'
@@ -697,6 +765,33 @@ class TestRuleVariant < Test::Unit::TestCase
 		@simple_rule.send(:import)
 		assert_same(@simple_rule[2], @optional_references[1].simple_rule)
 		assert_nil(@optional_references[3].simple_rule)
+	end
+
+	def test_has_many
+		@simple_rule.send(:rules=, @rules_dir1)
+		@simple_rule.send(:import)
+		@optional_references.send(:rules=, @rules_dir1)
+		@optional_references.send(:import)
+		@required_references.send(:rules=, @rules_dir1)
+		@required_references.send(:import)
+		assert_equal(
+			{
+				attribute: :simple_rule,
+				type: :required
+			},
+			@simple_rule.instance_variable_get(
+				:@relations
+			)[:RequiredReferences]
+		)
+		assert_equal(
+			{
+				attribute: :simple_rule,
+				type: :optional
+			},
+			@simple_rule.instance_variable_get(
+				:@relations
+			)[:OptionalReferences]
+		)
 	end
 
 	def test_inspect
