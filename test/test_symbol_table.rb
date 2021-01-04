@@ -16,24 +16,24 @@ class TestSymbolTable < Test::Unit::TestCase
 		@rules = {
 			SimpleRule: Class.new(RandTextCore::RuleVariant) do
 				attr_accessor :my_var
-				file_path TEST_DIR + 'simple_rule.csv'
+				self.file = TEST_DIR + 'simple_rule.csv'
 				def init
 					@my_var = 0
 				end
 			end,
 			WeightedRule: Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'weighted_rule.csv'
+				self.file = TEST_DIR + 'weighted_rule.csv'
 			end,
 			RequiredReferences: Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'required_references.csv'
+				self.file = TEST_DIR + 'required_references.csv'
 				reference :simple_rule, :SimpleRule, :required
 			end,
 			OptionalReferences: Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'optional_references.csv'
+				self.file = TEST_DIR + 'optional_references.csv'
 				reference :simple_rule, :SimpleRule, :optional
 			end,
 			EnumAttribute: Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'enum_attribute.csv'
+				self.file = TEST_DIR + 'enum_attribute.csv'
 				enum :enum_attr, :value1, :value2, :value3
 			end
 		}

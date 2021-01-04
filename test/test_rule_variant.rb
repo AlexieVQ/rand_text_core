@@ -13,7 +13,7 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def setup
 		@simple_rule = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'simple_rule.csv'
+			self.file = TEST_DIR + 'simple_rule.csv'
 			has_many :OptionalReferences, :simple_rule, :optional
 			has_many :RequiredReferences, :simple_rule, :required
 
@@ -22,22 +22,22 @@ class TestRuleVariant < Test::Unit::TestCase
 			end
 		end
 		@weighted_rule = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'weighted_rule.csv'
+			self.file = TEST_DIR + 'weighted_rule.csv'
 
 			def weight
 				default_weight * 10
 			end
 		end
 		@optional_references = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'optional_references.csv'
+			self.file = TEST_DIR + 'optional_references.csv'
 			reference :simple_rule, :SimpleRule, :optional
 		end
 		@required_references = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'required_references.csv'
+			self.file = TEST_DIR + 'required_references.csv'
 			reference :simple_rule, :SimpleRule, :required
 		end
 		@enum_attribute = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'enum_attribute.csv'
+			self.file = TEST_DIR + 'enum_attribute.csv'
 			enum :enum_attr, :value1, :value2, :value3
 		end
 		@rules_dir1 = [
@@ -254,7 +254,7 @@ class TestRuleVariant < Test::Unit::TestCase
 		end
 		assert_raise(RuntimeError) { RandTextCore::RuleVariant.file }
 		assert_raise(RuntimeError) do 
-			RandTextCore::RuleVariant.file_path(TEST_DIR + 'simple_rule.csv')
+			RandTextCore::RuleVariant.file = TEST_DIR + 'simple_rule.csv'
 		end
 		assert_raise(RuntimeError) do
 			RandTextCore::RuleVariant.reference(:simple_rule, :simple_rule)
@@ -313,7 +313,7 @@ class TestRuleVariant < Test::Unit::TestCase
 	def test_non_existing_file
 		assert_raise(ArgumentError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'complex_rule.csv'
+				self.file = TEST_DIR + 'complex_rule.csv'
 			end
 		end
 	end
@@ -321,106 +321,106 @@ class TestRuleVariant < Test::Unit::TestCase
 	def test_invalid_file_name
 		assert_raise(ArgumentError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path INVALID_DIR + 'invalid name.csv'
+				self.file = INVALID_DIR + 'invalid name.csv'
 			end
 		end
 	end
 
 	def test_reset_file_path
 		assert_raise(RuntimeError) do
-			@simple_rule.file_path(TEST_DIR + 'weighted_rule.csv')
+			@simple_rule.file = TEST_DIR + 'weighted_rule.csv'
 		end
 	end
 
 	def test_wrong_argument_type
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path 3
+				self.file = 3
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'required_references.csv'
+				self.file = TEST_DIR + 'required_references.csv'
 				reference 4, :simple_rule, :required
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'required_references.csv'
+				self.file = TEST_DIR + 'required_references.csv'
 				reference :simple_rule, 5, :optional
 			end
 		end
 		assert_raise(ArgumentError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'required_references.csv'
+				self.file = TEST_DIR + 'required_references.csv'
 				reference :simple_rule, :simple_rule, 8
 			end
 		end
 		assert_raise(ArgumentError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'required_references.csv'
+				self.file = TEST_DIR + 'required_references.csv'
 				reference :id, :simple_rule, :required
 			end
 		end
 		assert_raise(ArgumentError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'required_references.csv'
+				self.file = TEST_DIR + 'required_references.csv'
 				reference :weight, :simple_rule, :required
 			end
 		end
 		assert_raise(RuntimeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'required_references.csv'
+				self.file = TEST_DIR + 'required_references.csv'
 				reference :simple_rule, :simple_rule, :required
 				reference :simple_rule, :simple_rule, :opitonal
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'enum_attribute.csv'
+				self.file = TEST_DIR + 'enum_attribute.csv'
 				enum 2, :value1, :value2, :value3
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'enum_attribute.csv'
+				self.file = TEST_DIR + 'enum_attribute.csv'
 				enum :enum_attr, :value1, 2, :value3
 			end
 		end
 		assert_raise(ArgumentError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'enum_attribute.csv'
+				self.file = TEST_DIR + 'enum_attribute.csv'
 				enum :id, :value1, :value2, :value3
 			end
 		end
 		assert_raise(RuntimeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'enum_attribute.csv'
+				self.file = TEST_DIR + 'enum_attribute.csv'
 				enum :enum_attr, :value1, :value2, :value3
 				enum :enum_attr, :value4
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'simple_rule.csv'
+				self.file = TEST_DIR + 'simple_rule.csv'
 				has_many 8, :simple_rule, :optional
 			end
 		end
 		assert_raise(TypeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'simple_rule.csv'
+				self.file = TEST_DIR + 'simple_rule.csv'
 				has_many :RequiredReferences, 7, :required
 			end
 		end
 		assert_raise(ArgumentError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'simple_rule.csv'
+				self.file = TEST_DIR + 'simple_rule.csv'
 				has_many :RequiredReferences, :simple_rule, :optimal
 			end
 		end
 		assert_raise(RuntimeError) do
 			Class.new(RandTextCore::RuleVariant) do
-				file_path TEST_DIR + 'simple_rule.csv'
+				self.file = TEST_DIR + 'simple_rule.csv'
 				has_many :RequiredReferences, :simple_rule, :required
 				has_many :RequiredReferences, :attribute, :optional
 			end
@@ -508,7 +508,7 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def test_invalid_attr_name
 		invalid_attr_name = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'invalid_attr_name.csv'
+			self.file = INVALID_DIR + 'invalid_attr_name.csv'
 		end
 		assert_raise(RuntimeError) { invalid_attr_name.send(:import) }
 	end
@@ -550,7 +550,7 @@ class TestRuleVariant < Test::Unit::TestCase
 			attr_accessor :var1
 			attr_accessor :var2
 
-			file_path TEST_DIR + 'simple_rule.csv'
+			self.file = TEST_DIR + 'simple_rule.csv'
 
 			def init
 				@my_var = 0
@@ -573,7 +573,7 @@ class TestRuleVariant < Test::Unit::TestCase
 		simple_rule = Class.new(RandTextCore::RuleVariant) do
 			attr_accessor :my_var
 
-			file_path TEST_DIR + 'simple_rule.csv'
+			self.file = TEST_DIR + 'simple_rule.csv'
 
 			def init
 				@my_var = 0
@@ -615,21 +615,21 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def test_already_initialized_rule
 		simple_rule = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'simple_rule.csv'
+			self.file = TEST_DIR + 'simple_rule.csv'
 		end
 		simple_rule.send(:import)
 		assert_raise(RuntimeError) do
 			simple_rule.has_many(:OptionalReferences, :simple_rule, :optional)
 		end
 		required_references = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'required_references.csv'
+			self.file = TEST_DIR + 'required_references.csv'
 		end
 		required_references.send(:import)
 		assert_raise(RuntimeError) do
 			required_references.reference(:SimpleRule, :simple_rule, :required)
 		end
 		enum_attribute = Class.new(RandTextCore::RuleVariant) do
-			file_path TEST_DIR + 'enum_attribute.csv'
+			self.file = TEST_DIR + 'enum_attribute.csv'
 		end
 		enum_attribute.send(:import)
 		assert_raise(RuntimeError) do
@@ -639,14 +639,14 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def test_no_id
 		no_id = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'no_id.csv'
+			self.file = INVALID_DIR + 'no_id.csv'
 		end
 		assert_raise(RuntimeError) { no_id.send(:import) }
 	end
 
 	def test_duplicated_id
 		duplicated_id = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'duplicated_id.csv'
+			self.file = INVALID_DIR + 'duplicated_id.csv'
 		end
 		assert_raise(RuntimeError) { duplicated_id.send(:import) }
 	end
@@ -659,35 +659,35 @@ class TestRuleVariant < Test::Unit::TestCase
 
 	def test_identical_attributes
 		identical_attributes = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'identical_attributes.csv'
+			self.file = INVALID_DIR + 'identical_attributes.csv'
 		end
 		assert_raise { identical_attributes.send(:import) }
 	end
 
 	def test_null_id
 		null_id = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'null_id.csv'
+			self.file = INVALID_DIR + 'null_id.csv'
 		end
 		assert_raise(RuntimeError) { null_id.send(:import) }
 	end
 
 	def test_too_few_fields
 		too_few_fields = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'too_few_fields.csv'
+			self.file = INVALID_DIR + 'too_few_fields.csv'
 		end
 		assert_raise(RuntimeError) { too_few_fields.send(:import) }
 	end
 
 	def test_too_much_fields
 		too_much_fields = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'too_much_fields.csv'
+			self.file = INVALID_DIR + 'too_much_fields.csv'
 		end
 		assert_raise(RuntimeError) { too_much_fields.send(:import) }
 	end
 
 	def test_invalid_enum_value
 		invalid_enum_value = Class.new(RandTextCore::RuleVariant) do
-			file_path INVALID_DIR + 'invalid_enum_value.csv'
+			self.file = INVALID_DIR + 'invalid_enum_value.csv'
 			enum :enum_attr, :value1, :value2, :value3
 		end
 		assert_raise(RuntimeError) { invalid_enum_value.send(:import) }

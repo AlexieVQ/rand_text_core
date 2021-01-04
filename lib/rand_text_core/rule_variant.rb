@@ -236,10 +236,10 @@ class RandTextCore::RuleVariant
 	# Returns rule name, in +UpperCamelCase+, as in file name.
 	# @return [Symbol] rule name, in +UpperCamelCase+, as in file name
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
-	#  {RuleVariant#file_path}
+	#  {RuleVariant#file=}
 	# @example
 	#  class MyRule < RandTextCore::RuleVariant
-	#      file_path 'rules/my_rule.csv'
+	#      self.file = 'rules/my_rule.csv'
 	#  end
 	#  
 	#  MyRule.rule_name	#=> :MyRule
@@ -256,10 +256,10 @@ class RandTextCore::RuleVariant
 	# Returns rule name, in +lower_snake_case+, as in file name.
 	# @return [Symbol] rule name, in +lower_snake_case+, as in file name
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
-	#  {RuleVariant#file_path}
+	#  {RuleVariant#file=}
 	# @example
 	#  class MyRule < RandTextCore::RuleVariant
-	#      file_path 'rules/my_rule.csv'
+	#      self.file = 'rules/my_rule.csv'
 	#  end
 	#  
 	#  MyRule.lower_snake_case_name	#=> :my_rule
@@ -273,10 +273,10 @@ class RandTextCore::RuleVariant
 		@lower_snake_case_name
 	end
 
-	# Returns file path set with {RuleVariant#file_path}.
+	# Returns file path set with {RuleVariant#file=}.
 	# @return [String] file path (frozen)
 	# @raise [RuntimeError] called on RuleVariant, or file path not set with
-	#  {RuleVariant#file_path}
+	#  {RuleVariant#file=}
 	def self.file
 		if self == RandTextCore::RuleVariant
 			raise "class RuleVariant does not represent any rule"
@@ -297,7 +297,7 @@ class RandTextCore::RuleVariant
 	# @raise [ArgumentError] given String does not represent a path to a CSV
 	#  file
 	# @raise [RuntimeError] called on RuleVariant, or called multiple time
-	def self.file_path(path)
+	def self.file=(path)
 		if self == RandTextCore::RuleVariant
 			raise "cannot set file path for class RuleVariant"
 		end
@@ -402,7 +402,7 @@ class RandTextCore::RuleVariant
 	# @param [#to_sym] attribute attribute of target referencing current rule
 	# @param [:required, :optional] type +:optional+ allows for a variant to not
 	#  have any associated variant in the target rule; in this case the
-	#  dynamicly defined public method will return +nil+
+	#  dynamically defined public method will return +nil+
 	# @return [nil]
 	# @raise [TypeError] no implicit conversion for arguments into Symbol
 	# @raise [ArgumentError] wrong value for +type+
@@ -776,7 +776,7 @@ class RandTextCore::RuleVariant
 	#  # 2,bbb,20
 	#  
 	#  class MyRule < RandTextCore::RuleVariant
-	#      file_path 'my_rule.csv'
+	#      self.file = 'my_rule.csv'
 	#  end
 	#  
 	#  MyRule[1].inspect	#=> '#<MyRule id=1, value="aaa", weight=10>'
