@@ -6,8 +6,11 @@ SimpleCov.start
 require 'test/unit'
 require_relative '../lib/rand_text_core/rule_variant'
 require_relative '../lib/rand_text_core/symbol_table'
+require_relative '../lib/rand_text_core/refinements'
 
 class TestRuleVariant < Test::Unit::TestCase
+
+	using RandTextCore::Refinements
 
 	TEST_DIR = 'test/dir1/'
 	INVALID_DIR = 'test/invalid_dir/'
@@ -17,6 +20,10 @@ class TestRuleVariant < Test::Unit::TestCase
 			self.file = TEST_DIR + 'simple_rule.csv'
 			has_many :OptionalReferences, :simple_rule, :optional
 			has_many :RequiredReferences, :simple_rule, :required
+
+			def self.pick?(variant, min)
+				variant.id >= min.to_i
+			end
 
 			def value
 				"value #{id}: #{default_value}"
@@ -535,6 +542,25 @@ class TestRuleVariant < Test::Unit::TestCase
 		@simple_rule.send(:init_rule, @symbol_table)
 		@simple_rule.each { |v| i += 1 }
 		assert_equal(4, i)
+	end
+
+	def test_pick
+		@simple_rule.send(:init_rule, @symbol_table)
+		@weighted_rule.send(:init_rule, @symbol_table)
+		picks = Array.new(100) { @simple_rule.pick("2") }
+		assert_false(picks.any? { |variant| variant.id < 2 })
+		assert_nil(@simple_rule.pick("5"))
+		picks = Array.new(100) { @weighted_rule.pick }
+		@weighted_rule.each do |variant|
+			pb = variant.weight.to_f / @weighted_rule.total_weight
+			assert_in_delta(
+				pb,
+				picks.count do
+					|v| v.id == variant.id
+				end.to_f / @weighted_rule.total_weight,
+				Math.sqrt(100 * pb * (1 - pb))
+			)
+		end
 	end
 
 	def test_unitialized_rule
