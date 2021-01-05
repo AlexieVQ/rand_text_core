@@ -464,7 +464,7 @@ class RandTextCore::RuleVariant
 					if id == 0
 						nil
 					else
-						self.rule(target)[@attributes[attribute]]
+						self.symbol_table.rule(target)[@attributes[attribute]]
 					end
 				end
 				private(sym)
@@ -525,9 +525,11 @@ class RandTextCore::RuleVariant
 	# Import entities from CSV file, then freeze the class.
 	# The class is now considered initialized in regard of
 	# {RuleVariant#initialized?}.
+	# @return [SymbolTable] symbol table associated to the core
 	# @return [self]
 	# @raise [RuntimeError] wrong number of fields in the row, or error in a row
-	def self.import
+	def self.init_rule(symbol_table)
+		@symbol_table = symbol_table
 		@variants = {}
 		CSV.read(
 			self.file,
@@ -536,7 +538,7 @@ class RandTextCore::RuleVariant
 			return_headers: true,
 			header_converters: ->(str) do
 				unless str.lower_snake_case?
-					raise "invalid name for attribute\"#{str}\""
+					raise "invalid name for attribute \"#{str}\""
 				end
 				str.to_sym
 			end
@@ -555,7 +557,7 @@ class RandTextCore::RuleVariant
 		@relations.freeze
 		self
 	end
-	private_class_method :import
+	private_class_method :init_rule
 
 	# Tests whether the class is initialized or not, i.e. all its data have been
 	# imported, and no more modification can be done.
@@ -605,24 +607,12 @@ class RandTextCore::RuleVariant
 		return @variants.size
 	end
 
-	# Returns rule of given name.
-	# @param [#to_sym] name name of the rule (returned by
-	#  {RuleVariant#rule_name})
-	# @return [Class] class extending RuleVariant representing the rule
-	# @raise [TypeError] no implicit conversion of name into Symbol
-	# @raise [ArgumentError] no rule of given name in the system
-	def self.rule(name)
-		begin
-			name = name.to_sym
-		rescue NoMethodError
-			raise TypeError,
-				"no implicit conversion of #{name.class} into Symbol"
-		end
-		rule = @rules.find { |rule| rule.rule_name == name }
-		unless rule
-			raise ArgumentError, "no rule named #{name} in the system"
-		end
-		rule
+	# Returns the symbol table of this core.
+	# @return [SymbolTable] symbol table used by the core
+	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
+	def self.symbol_table
+		self.require_initialized_rule
+		@symbol_table
 	end
 
 	# Calls {RuleVariant#init} on each variant.
@@ -670,12 +660,6 @@ class RandTextCore::RuleVariant
 		include Enumerable
 
 		alias :length :size
-
-		private
-
-		# Set the list of rules in the system
-		# @return [Array<Class>] list of classes representing rules
-		attr_writer :rules
 	end
 
 	################################
@@ -735,20 +719,13 @@ class RandTextCore::RuleVariant
 		self.default_weight
 	end
 
-	# Returns rule of given name.
-	# @param [#to_sym] name name of the rule
-	# @return [Class] class extending RuleVariant representing the rule
-	# @raise [TypeError] no implicit conversion of name into Symbol
-	# @raise [ArgumentError] no rule of given name in the system
-	def rule(name)
-		begin
-			name = name.to_sym
-		rescue NoMethodError
-			raise TypeError,
-				"no implicit conversion of #{name.class} into Symbol"
-		end
-		self.class.rule(name)
+	# Returns the symbol table for this core.
+	# @return [SymbolTable] symbol table of the core
+	def symbol_table
+		self.rule.symbol_table
 	end
+
+	alias :rule :class
 
 	# Override this method to add a specific behaviour when initializing the
 	# variant or resetting the symbol table.
