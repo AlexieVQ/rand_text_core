@@ -1,4 +1,5 @@
 require_relative '../rand_text_core'
+require_relative 'rtc_exception'
 
 # Module containing refinements for Ruby classes.
 #
@@ -43,6 +44,46 @@ module RandTextCore::Refinements
 			parts.length == 2 && parts[0].lower_snake_case? && parts[1] == 'csv'
 		end
 
+	end
+
+	refine Enumerable do
+		
+		# Returns the sum of the attributes +weight+ of all elements of the
+		# enumerable.
+		# For elements that does not have a +weight+ attribute, their weight is
+		# 1.
+		# @return [Integer] total weight of the elements of the enumerable
+		def total_weight
+			self.inject(0) do |sum, element|
+				begin
+					sum + element.weight
+				rescue NoMethodError
+					sum + 1
+				end
+			end
+		end
+
+		# Pick randomly an element of the enumerable.
+		# The random choice is weighted by the +weight+ attribute of the
+		# elements. If an element does not have a +weight+ attribute, its weight
+		# is 1.
+		# @return [Object, nil] randomly chosen attribute, or +nil+ if the
+		#  enumerable is empty or does not have any attribute with a non-null
+		#  weight
+		def pick
+			total_weight = self.total_weight
+			return nil if total_weight == 0
+			n = rand(total_weight)
+			self.each do |element|
+				n -= begin
+					element.weight
+				rescue NoMethodError
+					1
+				end
+				return element if n <= 0
+			end
+		end
+		
 	end
 
 end
