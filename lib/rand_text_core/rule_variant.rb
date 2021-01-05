@@ -599,6 +599,35 @@ class RandTextCore::RuleVariant
 		end
 	end
 
+	# Decides whether a given variant must be picked in a random picking
+	# according to given arguments.
+	# Returns true for all variants by default.
+	# @param [RuleVariant] variant variant to test
+	# @param [Array<String>] args arguments (never empty when called from an
+	#  expansion node, if no arguments are explecitly given, an empty string is
+	#  given by default; can be empty if called from ruby code)
+	# @return [true, false] +true+ if the variant must be picked, +false+
+	#  otherwise
+	def self.pick?(variant, *args)
+		true
+	end
+
+	# Pick a variant of the rule randomly, using a weighted random choice.
+	# The pickable variants are definad by {RuleVariant#pick?} using given
+	# arguments.
+	# @param [Array<String>] args arguments (never empty when called from an
+	#  expansion node, if no arguments are explecitly given, an empty string is
+	#  given by default; can be empty if called from ruby code)
+	# @return [RuleVariant, nil] a randomly chosen variant, or +nil+ if no
+	#  variant satisfies the arguments
+	def self.pick(*args)
+		ary = self.select { |variant| self.pick?(variant, *args) }
+		class << ary
+			include Enumerable
+		end
+		ary.pick
+	end
+
 	# Returns the number of variants of the rule.
 	# @returns [Integer] number of variants of the rule
 	# @raise [RuntimeError] called on RuleVariant, or class not initialized
