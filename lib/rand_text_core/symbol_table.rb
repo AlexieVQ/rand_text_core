@@ -195,7 +195,7 @@ class RandTextCore::SymbolTable
 	# @return [self]
 	def clear
 		@variables = {}
-		@rules.each_value { |rule| rule.reset }
+		@rules.each_value { |rule| rule.reset if rule.initialized? }
 		self
 	end
 
