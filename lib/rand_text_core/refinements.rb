@@ -52,11 +52,12 @@ module RandTextCore::Refinements
 		# enumerable.
 		# For elements that does not have a +weight+ attribute, their weight is
 		# 1.
+		# Any negative weight is considered null.
 		# @return [Integer] total weight of the elements of the enumerable
 		def total_weight
 			self.inject(0) do |sum, element|
 				begin
-					sum + element.weight
+					sum + [element.weight, 0].max
 				rescue NoMethodError
 					sum + 1
 				end
@@ -67,6 +68,7 @@ module RandTextCore::Refinements
 		# The random choice is weighted by the +weight+ attribute of the
 		# elements. If an element does not have a +weight+ attribute, its weight
 		# is 1.
+		# Any negative weight is considered null.
 		# @return [Object, nil] randomly chosen attribute, or +nil+ if the
 		#  enumerable is empty or does not have any attribute with a non-null
 		#  weight
@@ -76,14 +78,14 @@ module RandTextCore::Refinements
 			n = rand(total_weight)
 			self.each do |element|
 				n -= begin
-					element.weight
+					[element.weight, 0].max
 				rescue NoMethodError
 					1
 				end
 				return element if n <= 0
 			end
 		end
-		
+
 	end
 
 end

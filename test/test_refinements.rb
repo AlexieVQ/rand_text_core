@@ -49,18 +49,18 @@ class TestRefinements < Test::Unit::TestCase
 			1,
 			10,
 			WeightedObject.new(10),
-			WeightedObject.new(11),
+			WeightedObject.new(-11),
 			3,
 			WeightedObject.new(7),
 			WeightedObject.new(20),
 			0
 		]
 		@mixed_objects_sum = @mixed_objects.inject(0) do |sum, object|
-			sum + (object.kind_of?(WeightedObject) ? object.weight : 1)
+			sum + (object.kind_of?(WeightedObject) ? [object.weight, 0].max : 1)
 		end
 		@mixed_objects_means = @mixed_objects.map do |object|
 			if object.kind_of?(WeightedObject)
-				object.weight.to_f / @mixed_objects_sum
+				[object.weight.to_f, 0.0].max / @mixed_objects_sum
 			else
 				1.0 / @mixed_objects_sum
 			end
@@ -125,9 +125,9 @@ class TestRefinements < Test::Unit::TestCase
 		0.upto(draw_nb) do
 			enum_draws[enum.pick] += 1
 		end
-			assert_false(enum_draws.keys.any? do |element|
+		assert_false(enum_draws.keys.any? do |element|
 			element.kind_of?(WeightedObject) &&
-				element.weight == 0 &&
+				element.weight <= 0 &&
 				enum_draws[element] > 0
 		end)
 		deviations = Array.new(enum.length) do |i|
