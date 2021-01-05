@@ -37,10 +37,6 @@ class TestSymbolTable < Test::Unit::TestCase
 				enum :enum_attr, :value1, :value2, :value3
 			end
 		}
-		@rules.each_value do |rule|
-			rule.send(:rules=, @rules)
-			rule.send(:import)
-		end
 		@symbol_table = RandTextCore::SymbolTable.new(
 			{
 				ret_arg: ->(arg, table) do
@@ -57,7 +53,11 @@ class TestSymbolTable < Test::Unit::TestCase
 				end
 			},
 			@rules.values
-		).tap do |t|
+		)
+		@rules.each_value do |rule|
+			rule.send(:init_rule, @symbol_table)
+		end
+		@symbol_table.tap do |t|
 			t[:var1] = "string 1"
 			t[:var2] = 2
 			t[:var3] = @rules[:SimpleRule][3]

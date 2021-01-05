@@ -64,7 +64,7 @@ class RandTextCore::SymbolTable
 					"wrong type for object of index #{i} in second argument " +
 					"(Class espected, #{rule.class} given"
 			end
-			unless rule.superclass == RandTextCore::RuleVariant
+			unless rule.ancestors.include?(RandTextCore::RuleVariant)
 				raise ArgumentError,
 					"class of index #{i} in second argument is not a subclass" +
 					" of RandTextCore::RuleVariant"
