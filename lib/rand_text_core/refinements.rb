@@ -82,7 +82,7 @@ module RandTextCore::Refinements
 				rescue NoMethodError
 					1
 				end
-				return element if n <= 0
+				return element if n < 0
 			end
 		end
 
