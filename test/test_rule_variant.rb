@@ -5,6 +5,7 @@ SimpleCov.start
 
 require 'test/unit'
 require_relative '../lib/rand_text_core/rule_variant'
+require_relative '../lib/rand_text_core/symbol_table'
 
 class TestRuleVariant < Test::Unit::TestCase
 
@@ -44,8 +45,10 @@ class TestRuleVariant < Test::Unit::TestCase
 			@simple_rule,
 			@weighted_rule,
 			@optional_references,
-			@required_references
+			@required_references,
+			@enum_attribute
 		]
+		@symbol_table = RandTextCore::SymbolTable.new({}, @rules_dir1)
 	end
 
 	###################################
@@ -426,18 +429,8 @@ class TestRuleVariant < Test::Unit::TestCase
 			end
 		end
 		assert_raise(TypeError) do
-			@simple_rule.send(:import)
+			@simple_rule.send(:init_rule, @symbol_table)
 			@simple_rule[:key]
-		end
-		assert_raise(TypeError) do
-			@weighted_rule.send(:rules=, @rules_dir1)
-			@weighted_rule.send(:import)
-			@weighted_rule.rule(3)
-		end
-		assert_raise(TypeError) do
-			@required_references.send(:rules=, @rules_dir1)
-			@required_references.send(:import)
-			@required_references[1].rule(4)
 		end
 	end
 
@@ -510,15 +503,20 @@ class TestRuleVariant < Test::Unit::TestCase
 		invalid_attr_name = Class.new(RandTextCore::RuleVariant) do
 			self.file = INVALID_DIR + 'invalid_attr_name.csv'
 		end
-		assert_raise(RuntimeError) { invalid_attr_name.send(:import) }
+		assert_raise(RuntimeError) do
+			invalid_attr_name.send(
+				:init_rule,
+				RandTextCore::SymbolTable.new({}, [])
+			)
+		end
 	end
 
 	def test_import
-		@simple_rule.send(:import)
-		@weighted_rule.send(:import)
-		@optional_references.send(:import)
-		@required_references.send(:import)
-		@enum_attribute.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
+		@weighted_rule.send(:init_rule, @symbol_table)
+		@optional_references.send(:init_rule, @symbol_table)
+		@required_references.send(:init_rule, @symbol_table)
+		@enum_attribute.send(:init_rule, @symbol_table)
 
 		assert_equal(4, @simple_rule.size)
 		assert_equal(5, @weighted_rule.size)
@@ -528,13 +526,13 @@ class TestRuleVariant < Test::Unit::TestCase
 	end
 
 	def test_each_no_block
-		@simple_rule.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
 		assert_kind_of(Enumerator, @simple_rule.each)
 	end
 
 	def test_each_block
 		i = 0
-		@simple_rule.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
 		@simple_rule.each { |v| i += 1 }
 		assert_equal(4, i)
 	end
@@ -556,7 +554,7 @@ class TestRuleVariant < Test::Unit::TestCase
 				@my_var = 0
 			end
 		end
-		simple_rule.send(:import)
+		simple_rule.send(:init_rule, @symbol_table)
 		simple_rule[1].var1 = 2
 		snapshot = simple_rule.send(:current_state)
 		simple_rule[1].var1 += 1
@@ -579,59 +577,39 @@ class TestRuleVariant < Test::Unit::TestCase
 				@my_var = 0
 			end
 		end
-		simple_rule.send(:import)
+		simple_rule.send(:init_rule, RandTextCore::SymbolTable.new({}, []))
 		simple_rule[1].my_var = 2
 		simple_rule.reset
 		assert_equal(0, simple_rule[1].my_var)
 	end
 
 	def test_clone
-		@simple_rule.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
 		assert_same(@simple_rule[1], @simple_rule[1].clone)
-	end
-
-	def test_rules
-		@rules_dir1.each { |rule| rule.send(:rules=, @rules_dir1 ) }
-		@rules_dir1.each do |rule|
-			assert_equal(@simple_rule, rule.rule(:SimpleRule))
-			assert_equal(@weighted_rule, rule.rule(:WeightedRule))
-			assert_equal(@optional_references, rule.rule(:OptionalReferences))
-			assert_equal(@required_references, rule.rule(:RequiredReferences))
-		end
-		@simple_rule.send(:import)
-		@simple_rule.each do |variant|
-			assert_equal(@simple_rule, variant.rule(:SimpleRule))
-			assert_equal(@weighted_rule, variant.rule(:WeightedRule))
-			assert_equal(
-				@optional_references,
-				variant.rule(:OptionalReferences)
-			)
-			assert_equal(
-				@required_references,
-				variant.rule(:RequiredReferences)
-			)
-		end
 	end
 
 	def test_already_initialized_rule
 		simple_rule = Class.new(RandTextCore::RuleVariant) do
 			self.file = TEST_DIR + 'simple_rule.csv'
 		end
-		simple_rule.send(:import)
+		simple_rule.send(:init_rule, @symbol_table)
 		assert_raise(RuntimeError) do
 			simple_rule.has_many(:OptionalReferences, :simple_rule, :optional)
 		end
 		required_references = Class.new(RandTextCore::RuleVariant) do
 			self.file = TEST_DIR + 'required_references.csv'
 		end
-		required_references.send(:import)
+		required_references.send(
+			:init_rule,
+			RandTextCore::SymbolTable.new({}, [])
+		)
 		assert_raise(RuntimeError) do
 			required_references.reference(:SimpleRule, :simple_rule, :required)
 		end
 		enum_attribute = Class.new(RandTextCore::RuleVariant) do
 			self.file = TEST_DIR + 'enum_attribute.csv'
 		end
-		enum_attribute.send(:import)
+		enum_attribute.send(:init_rule, RandTextCore::SymbolTable.new({}, []))
 		assert_raise(RuntimeError) do
 			enum_attribute.enum(:enum_attr, :value1, :value2, :value3)
 		end
@@ -641,48 +619,66 @@ class TestRuleVariant < Test::Unit::TestCase
 		no_id = Class.new(RandTextCore::RuleVariant) do
 			self.file = INVALID_DIR + 'no_id.csv'
 		end
-		assert_raise(RuntimeError) { no_id.send(:import) }
+		assert_raise(RuntimeError) do
+			no_id.send(:init_rule, RandTextCore::SymbolTable.new({}, []))
+		end
 	end
 
 	def test_duplicated_id
 		duplicated_id = Class.new(RandTextCore::RuleVariant) do
 			self.file = INVALID_DIR + 'duplicated_id.csv'
 		end
-		assert_raise(RuntimeError) { duplicated_id.send(:import) }
-	end
-
-	def test_unexisting_rule
-		@simple_rule.send(:rules=, @rules_dir1)
-		@simple_rule.send(:import)
-		assert_raise(ArgumentError) { @simple_rule.rule(:complex_rule) }
+		assert_raise(RuntimeError) do
+			duplicated_id.send(
+				:init_rule,
+				RandTextCore::SymbolTable.new({}, [])
+			)
+		end
 	end
 
 	def test_identical_attributes
 		identical_attributes = Class.new(RandTextCore::RuleVariant) do
 			self.file = INVALID_DIR + 'identical_attributes.csv'
 		end
-		assert_raise { identical_attributes.send(:import) }
+		assert_raise do
+			identical_attributes.send(
+				:init_rule,
+				RandTextCore::SymbolTable.new({}, [])
+			)
+		end
 	end
 
 	def test_null_id
 		null_id = Class.new(RandTextCore::RuleVariant) do
 			self.file = INVALID_DIR + 'null_id.csv'
 		end
-		assert_raise(RuntimeError) { null_id.send(:import) }
+		assert_raise(RuntimeError) do
+			null_id.send(:init_rule, RandTextCore::SymbolTable.new({}, []))
+		end
 	end
 
 	def test_too_few_fields
 		too_few_fields = Class.new(RandTextCore::RuleVariant) do
 			self.file = INVALID_DIR + 'too_few_fields.csv'
 		end
-		assert_raise(RuntimeError) { too_few_fields.send(:import) }
+		assert_raise(RuntimeError) do
+			too_few_fields.send(
+				:init_rule,
+				RandTextCore::SymbolTable.new({}, [])
+			)
+		end
 	end
 
 	def test_too_much_fields
 		too_much_fields = Class.new(RandTextCore::RuleVariant) do
 			self.file = INVALID_DIR + 'too_much_fields.csv'
 		end
-		assert_raise(RuntimeError) { too_much_fields.send(:import) }
+		assert_raise(RuntimeError) do
+			too_much_fields.send(
+				:init_rule,
+				RandTextCore::SymbolTable.new({}, [])
+			)
+		end
 	end
 
 	def test_invalid_enum_value
@@ -690,7 +686,12 @@ class TestRuleVariant < Test::Unit::TestCase
 			self.file = INVALID_DIR + 'invalid_enum_value.csv'
 			enum :enum_attr, :value1, :value2, :value3
 		end
-		assert_raise(RuntimeError) { invalid_enum_value.send(:import) }
+		assert_raise(RuntimeError) do
+			invalid_enum_value.send(
+				:init_rule,
+				RandTextCore::SymbolTable.new({}, [])
+			)
+		end
 	end
 
 	######################
@@ -698,30 +699,26 @@ class TestRuleVariant < Test::Unit::TestCase
 	######################
 
 	def test_attributes
-		@simple_rule.send(:rules=, @rules_dir1)
-		@simple_rule.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
 		@simple_rule.each do |variant|
 			assert_respond_to(variant, :id)
 			assert_respond_to(variant, :value)
 			assert_respond_to(variant, :weight)
 		end
-		@weighted_rule.send(:rules=, @rules_dir1)
-		@weighted_rule.send(:import)
+		@weighted_rule.send(:init_rule, @symbol_table)
 		@weighted_rule.each do |variant|
 			assert_respond_to(variant, :id)
 			assert_respond_to(variant, :value)
 			assert_respond_to(variant, :weight)
 		end
-		@required_references.send(:rules=, @rules_dir1)
-		@required_references.send(:import)
+		@required_references.send(:init_rule, @symbol_table)
 		@required_references.each do |variant|
 			assert_respond_to(variant, :id)
 			assert_respond_to(variant, :value)
 			assert_respond_to(variant, :weight)
 			assert_respond_to(variant, :simple_rule)
 		end
-		@optional_references.send(:rules=, @rules_dir1)
-		@optional_references.send(:import)
+		@optional_references.send(:init_rule, @symbol_table)
 		@optional_references.each do |variant|
 			assert_respond_to(variant, :id)
 			assert_respond_to(variant, :value)
@@ -731,16 +728,11 @@ class TestRuleVariant < Test::Unit::TestCase
 	end
 
 	def test_get
-		@simple_rule.send(:rules=, @rules_dir1)
-		@simple_rule.send(:import)
-		@weighted_rule.send(:rules=, @rules_dir1)
-		@weighted_rule.send(:import)
-		@required_references.send(:rules=, @rules_dir1)
-		@required_references.send(:import)
-		@optional_references.send(:rules=, @rules_dir1)
-		@optional_references.send(:import)
-		@enum_attribute.send(:rules=, @rules_dir1)
-		@enum_attribute.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
+		@weighted_rule.send(:init_rule, @symbol_table)
+		@required_references.send(:init_rule, @symbol_table)
+		@optional_references.send(:init_rule, @symbol_table)
+		@enum_attribute.send(:init_rule, @symbol_table)
 		assert_equal(1, @simple_rule[1].id)
 		assert_equal("value 2: b,b", @simple_rule[2].value)
 		assert_equal(1, @simple_rule[3].weight)
@@ -751,29 +743,22 @@ class TestRuleVariant < Test::Unit::TestCase
 	end
 
 	def test_reference_attributes
-		@required_references.send(:rules=, @rules_dir1)
-		@required_references.send(:import)
-		@simple_rule.send(:rules=, @rules_dir1)
-		@simple_rule.send(:import)
+		@required_references.send(:init_rule, @symbol_table)
+		@simple_rule.send(:init_rule, @symbol_table)
 		assert_same(@simple_rule[2], @required_references[1].simple_rule)
 	end
 
 	def test_optional_reference
-		@optional_references.send(:rules=, @rules_dir1)
-		@optional_references.send(:import)
-		@simple_rule.send(:rules=, @rules_dir1)
-		@simple_rule.send(:import)
+		@optional_references.send(:init_rule, @symbol_table)
+		@simple_rule.send(:init_rule, @symbol_table)
 		assert_same(@simple_rule[2], @optional_references[1].simple_rule)
 		assert_nil(@optional_references[3].simple_rule)
 	end
 
 	def test_has_many
-		@simple_rule.send(:rules=, @rules_dir1)
-		@simple_rule.send(:import)
-		@optional_references.send(:rules=, @rules_dir1)
-		@optional_references.send(:import)
-		@required_references.send(:rules=, @rules_dir1)
-		@required_references.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
+		@optional_references.send(:init_rule, @symbol_table)
+		@required_references.send(:init_rule, @symbol_table)
 		assert_equal(
 			{
 				attribute: :simple_rule,
@@ -795,7 +780,7 @@ class TestRuleVariant < Test::Unit::TestCase
 	end
 
 	def test_inspect
-		@simple_rule.send(:import)
+		@simple_rule.send(:init_rule, @symbol_table)
 		assert_equal(
 			'#<SimpleRule id=1, value="a">',
 			@simple_rule[1].inspect
