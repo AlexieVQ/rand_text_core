@@ -9,7 +9,8 @@ Gem::Specification.new do |s|
 		'lib/rand_text_core/refinements.rb',
 		'lib/rand_text_core/symbol_table.rb',
 		'lib/rand_text_core/rtc_exception.rb',
-		'lib/rand_text_core/symbol_exception.rb'
+		'lib/rand_text_core/symbol_exception.rb',
+		'lib/rand_text_core/messages.rb'
 	]
 	s.summary		= 'Core for writing random text generators in Ruby.'
 	s.description	= 'RandTextCore provides classes to create a random text
