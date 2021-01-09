@@ -1,6 +1,7 @@
 require 'csv'
 require_relative '../rand_text_core'
 require_relative 'refinements'
+require_relative 'data_types'
 
 # A variant of a rule is a tuple from a CSV file.
 #
@@ -14,381 +15,6 @@ require_relative 'refinements'
 class RandTextCore::RuleVariant
 
 	using RandTextCore::Refinements
-
-	# Superclass for classes representing attribute types.
-	class AttributeType
-		private_class_method :new
-
-		# Returns the name of the type
-		# @return [String] name of the type
-		def inspect
-			self.class.name.split('::').last
-		end
-
-		alias :to_s :inspect
-
-		# Inspect given value.
-		# @param [String] value value to inspect
-		# @return [String] inspected value
-		def inspect_value(value)
-			value.inspect
-		end
-
-		# Verify itself for anomalies.
-		# @param [SymbolTable] symbol_table symbol table used
-		# @param [Class, nil] rule rule caling this method
-		# @param [Symbol, nil] attribute concerned attribute
-		# @return [Array<Message>] generated messages
-		def verify_self(symbol_table, rule = nil, attribute = nil)
-			[]
-		end
-
-		# Verify given value for anomalies.
-		# @param [String] value value to verify
-		# @param [SymbolTable] symbol_table symbol table used
-		# @param [Class, nil] rule rule calling this method
-		# @param [RuleVariant, nil] variant variant calling this method
-		# @param [Symbol, nil] attribute concerned attribute
-		# @return [Array<Message>] generated messages
-		def verify(value,
-		           symbol_table,
-		           messages,
-		           rule = nil,
-		           variant = nil,
-		           attribute = nil)
-			if value == nil
-				[RandTextCore::ErrorMessage.new(
-					"attribute not defined",
-					rule,
-					variant,
-					attribute
-				)]
-			else
-				[]
-			end
-		end
-
-		# Converts given value into expected type (default, keep it as a
-		# String).
-		# @param [String] value value to convert, considered valid in regard of
-		#  {AttributeType#verify}
-		# @param [SymbolTable] symbol_table symbol table used
-		# @return [Object] converted value
-		def convert(value, symbol_table)
-			value
-		end
-	end
-
-	# Super type for types storing integer values.
-	class IntegerType < AttributeType
-
-		# Inspect given value.
-		# @param [String] value value to inspect
-		# @return [String] inspected value
-		def inspect_value(value)
-			value.to_i.inspect
-		end
-
-		# Verify is given value does represent a valid integer.
-		# @param [String] value value to verify
-		# @param [SymbolTable] symbol_table symbol table used
-		# @param [Array<Message>] messages message list
-		# @param [Class, nil] rule rule calling this method
-		# @param [RuleVariant, nil] variant variant calling this method
-		# @param [Symbol, nil] attribute concerned attribute
-		# @return [Array<Message>] generated messages
-		def verify(value,
-				   symbol_table,
-				   rule = nil,
-				   variant = nil,
-				   attribute = nil)
-			messages = super(value, symbol_table, rule, variant, attribute)
-			unless value.match?(/\A\s*\d+\s*\z/)
-				messages << RandTextCore::WarningMessage.new(
-					"\"#{value}\" is confusing for an integer (#{value.to_i} " +
-						"infered)",
-					rule,
-					variant,
-					attribute
-				)
-			end
-			messages
-		end
-
-		# Converts given value into Integer.
-		# @param [String] value value to convert, considered valid in regard of
-		#  {AttributeType#verify}
-		# @param [SymbolTable] symbol_table symbol table used
-		# @return [Integer] converted value
-		def convert(value, symbol_table)
-			value.to_i
-		end
-
-	end
-
-	# Type for the 'id' attribute.
-	class Identifier < IntegerType
-		# Returns an instance representing the Identifier type.
-		# @return [Identifier] instance representing the type
-		def self.type
-			@instance ||= self.new
-			@instance
-		end
-
-		# Verify is given value does represent a valid id.
-		# @param [String] value value to verify
-		# @param [SymbolTable] symbol_table symbol table used
-		# @param [Class, nil] rule rule calling this method
-		# @param [RuleVariant, nil] variant variant calling this method
-		# @param [Symbol, nil] attribute concerned attribute
-		# @return [Array<Message>] generated messages
-		def verify(value,
-		           symbol_table,
-		           rule = nil,
-		           variant = nil,
-		           attribute = nil)
-			messages = super(value, symbol_table, rule, variant, attribute)
-			if value.to_i == 0
-				messages << RandTextCore::ErrorMessage.new(
-					"id cannot be null",
-					rule,
-					variant,
-					attribute
-				)
-			end
-			messages
-		end
-	end
-
-	# Type for the 'weight' attribute.
-	class Weight < IntegerType
-		# Returns an instance representing the Weight type.
-		# @returns [Weight] instance representing the type
-		def self.type
-			@instance ||= self.new
-			@instance
-		end
-	end
-
-	# Type for an attribute referencing another rule.
-	class Reference < IntegerType
-		# @see Reference#initialize
-		def self.[](target, type)
-			self.new(target, type)
-		end
-
-		# @return [Symbol] referenced rule
-		attr_reader :target
-
-		# @return [:required, :optional] type of the reference
-		attr_reader :type
-
-		# Creates a type for an attribute referencing given rule.
-		# @param [#to_sym] target name of referenced rule
-		# @param [:required, :optional] +:required+ for a required reference,
-		#  +:optional+ for an optional one
-		# @raise [TypeError] no implicit conversion of target into Symbol
-		# @raise [ArgumentError] wrong type given
-		def initialize(target, type)
-			begin
-				@target = target.to_sym
-			rescue NoMethodError
-				raise TypeError,
-					"no implicit conversion of #{target.class} into Symbol"
-			end
-			unless [:required, :optional].include?(type)
-				raise ArgumentError,
-					"wrong reference type (:required or :optional expected, " +
-					"#{type} given)"
-			end
-			@type = type
-		end
-
-		# Testing if another object is a Reference type referencing the same
-		# rule with the same type of requirement.
-		# @param [Object] o the object to compare
-		# @return [true, false] +true+ if +o+ is a Reference type referencing
-		#  the same rule with the same type of requirement, +false+ otherwise
-		def ==(o)
-			o.kind_of?(Reference) &&
-				o.target == self.target &&
-				o.type == self.type
-		end
-
-		# Returns a string in the format +"Reference<rule_name, type>"+.
-		# @return [String] string representing the type
-		# @example
-		#  p RandTextCore::RuleVariant::Reference[:MyRule, :optional]
-		#  # Reference<MyRule, optional>
-		def inspect
-			super + "<#{target}, #{type}>"
-		end
-
-		alias :to_s :inspect     
-
-		# Inspect given value.
-		# @param [String] value value to inspect
-		# @return [String] inspected value
-		def inspect_value(value)
-			"#{self.target}[#{value.to_i}]"
-		end
-
-		# Verify itself for anomalies.
-		# @param [SymbolTable] symbol_table symbol table used
-		# @param [Class, nil] rule rule caling this method
-		# @param [Symbol, nil] attribute concerned attribute
-		# @return [Array<Message>] generated messages
-		def verify_self(symbol_table, rule = nil, attribute = nil)
-			unless symbol_table.has_rule?(self.target)
-				[RandTextCore::ErrorMessage.new(
-					"no rule named #{self.target}",
-					rule,
-					nil,
-					attribute
-				)]
-			else
-				[]
-			end
-		end
-
-		# Verifies is given value does represent a valid reference to target.
-		# @param [String] value value to verify
-		# @param [SymbolTable] symbol_table symbol table used
-		# @param [Array<Message>] messages message list
-		# @param [Class, nil] rule rule calling this method
-		# @param [RuleVariant, nil] variant variant calling this method
-		# @param [Symbol, nil] attribute concerned attribute
-		# @return [Array<Message>] generated messages
-		def verify(value,
-		           symbol_table,
-		           rule = nil,
-		           variant = nil,
-		           attribute = nil)
-			messages = super(value, symbol_table, rule, variant, attribute)
-			if self.type == :required && value.to_i == 0
-				messages << RandTextCore::ErrorMessage.new(
-					"required reference to rule #{self.target} cannot be null",
-					rule,
-					variant,
-					attribute
-				)
-			elsif value.to_i != 0 &&
-				symbol_table.has_rule?(self.target) &&
-				!symbol_table.rule(self.target)[value.to_i]
-				messages << RandTextCore::ErrorMessage.new(
-					"no variant of id #{value.to_i} in rule #{self.target}",
-					rule,
-					variant,
-					attribute
-				)
-			end
-			messages
-		end
-
-		# Returns referenced rule variant, or +nil+ for a null reference.
-		# @param [String] value value to convert, considered valid in regard of
-		#  {AttributeType#verify}
-		# @param [SymbolTable] symbol_table symbol table used
-		# @return [RuleVariant] referenced rule variant
-		def convert(value, symbol_table)
-			symbol_table.rule(self.target)[value.to_i]
-		end
-	end
-
-	# Type for an attribute with string values.
-	class StringAttribute < AttributeType
-		# Returns an instance representing the StringAttribute type
-		# @return [StringAttribute] instance representing the StringAttribute
-		#  type
-		def self.type
-			@instance ||= self.new
-			@instance
-		end
-	end
-
-	# Type for an attribute with a set of accepted values.
-	class Enum < AttributeType
-		# @see Enum#initialize
-		def self.[](*values)
-			self.new(*values)
-		end
-
-		# @return [Array<Symbol>] set of accepted values (frozen)
-		attr_reader :values
-
-		# Creates a type for an attribute with a set of accepted values.
-		# @param [Array<#to_sym>] values values accepted by the attribute
-		# @raise [TypeError] no implicit conversion of value into Symbol
-		def initialize(*values)
-			@values = values.map do |value|
-				begin
-					value.to_sym
-				rescue NoMethodError
-					raise TypeError,
-						"no implicit conversion of #{value.class} into Symbol"
-				end
-			end.uniq.sort.freeze
-		end
-
-		# Testing if another object is an Enum type with the same set of values.
-		# @param [Object] o the object to compare
-		# @return [true, false] +true+ if +o+ is an Enum type with the same set
-		#  of referenced values, +false+ otherwise
-		def ==(o)
-			o.kind_of?(Enum) && o.values == self.values
-		end
-
-		# Returns a string in the format +"Enum<:value1, :value2, :value3>"+.
-		# @return [String] a string representing the type and its accepted
-		#  values
-		def inspect
-			super + "<#{self.values.map { |v| v.inspect }.join(', ')}>"
-		end
-
-		alias :to_s :inspect
-
-		# Inspect given value.
-		# @param [String] value value to inspect
-		# @return [String] inspected value
-		def inspect_value(value)
-			":#{value}"
-		end
-
-		# Verifies that given value is accepted.
-		# @param [String] value value to verify
-		# @param [SymbolTable] symbol_table symbol table used
-		# @param [Class, nil] rule rule calling this method
-		# @param [RuleVariant, nil] variant variant calling this method
-		# @param [Symbol, nil] attribute concerned attribute
-		# @return [Array<Message>] generated messages
-		def verify(value,
-		           symbol_table,
-		           rule = nil,
-		           variant = nil,
-				   attribute = nil)
-			messages = super(value, symbol_table, rule, variant, attribute)
-			unless self.values.any? { |v| v.id2name == value }
-				messages << RandTextCore::ErrorMessage.new(
-					"invalid value \"#{value}\" (expected " +
-						"#{self.values.map { |v| v.id2name }.join(', ')})",
-					rule,
-					variant,
-					attribute
-				)
-			end
-			messages
-		end
-
-		# Converts given value into expected type (default, keep it as a
-		# String).
-		# @param [String] value value to convert, considered valid in regard of
-		#  {AttributeType#verify}
-		# @param [SymbolTable] symbol_table symbol table used
-		# @return [Object] converted value
-		def convert(value, symbol_table)
-			value.to_sym
-		end
-	end
 
 	###########################
 	# CLASS METHOD FOR A RULE #
@@ -516,7 +142,10 @@ class RandTextCore::RuleVariant
 		if @attr_types[attribute]
 			raise "type already set for attribute #{attribute}"
 		end
-		@attr_types[attribute] = Reference[rule_name, type]
+		@attr_types[attribute] = RandTextCore::DataTypes::Reference[
+			rule_name,
+			type
+		]
 		nil
 	end
 
@@ -549,7 +178,7 @@ class RandTextCore::RuleVariant
 		if @attr_types[attribute]
 			raise "type already set for attribute #{attribute}"
 		end
-		@attr_types[attribute] = Enum[*values]
+		@attr_types[attribute] = RandTextCore::DataTypes::Enum[*values]
 		nil
 	end
 
@@ -613,14 +242,19 @@ class RandTextCore::RuleVariant
 		@attr_types ||= {}
 		header.each do |attribute|
 			if attribute == :id
-				@attr_types[attribute] = Identifier.type
+				@attr_types[attribute] =
+					RandTextCore::DataTypes::Identifier.type
 			elsif attribute == :weight
-				@attr_types[attribute] = Weight.type
+				@attr_types[attribute] = RandTextCore::DataTypes::Weight.type
 				define_method(:default_weight) do
-					Weight.type.convert(@attributes[:weight], self.symbol_table)
+					RandTextCore::DataTypes::Weight.type.convert(
+						@attributes[:weight],
+						self.symbol_table
+					)
 				end
 			else
-				@attr_types[attribute] ||= StringAttribute.type
+				@attr_types[attribute] ||= 
+					RandTextCore::DataTypes::StringAttribute.type
 				type = @attr_types[attribute]
 				sym = "default_#{attribute}"
 				define_method(sym) do
@@ -645,7 +279,7 @@ class RandTextCore::RuleVariant
 	private_class_method :headers=
 
 	# Returns a hash map associating attributes' names to their type.
-	# @return [Hash{Symbol => AttributeType}] hash map associating attributes'
+	# @return [Hash{Symbol => DataType}] hash map associating attributes'
 	#  names to their type
 	# @raise [RuntimeError] called on RuleVariant, or attributes' types not yet
 	#  set
@@ -872,7 +506,7 @@ class RandTextCore::RuleVariant
 	#  to add a special behaviour at initialization, override
 	#  {RuleVariant#init}.
 	# @param [CSV::Row] row row from the CSV file.
-	# @param [Hash{Symbol => AttributeType}] types hash map associating
+	# @param [Hash{Symbol => DataType}] types hash map associating
 	#  attribute names to their types
 	# @raise [ArgumentError] invalid row
 	def initialize(row)
@@ -889,7 +523,7 @@ class RandTextCore::RuleVariant
 	#  +id+ attribute must always return the id as it is in the table.
 	# @return [Integer] variant's id, as in the CSV file
 	def id
-		Identifier.type.convert(@attributes[:id], nil)
+		RandTextCore::DataTypes::Identifier.type.convert(@attributes[:id], nil)
 	end
 
 	# Returns the variant's weight.

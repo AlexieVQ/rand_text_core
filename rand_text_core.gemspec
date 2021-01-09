@@ -10,7 +10,14 @@ Gem::Specification.new do |s|
 		'lib/rand_text_core/symbol_table.rb',
 		'lib/rand_text_core/rtc_exception.rb',
 		'lib/rand_text_core/symbol_exception.rb',
-		'lib/rand_text_core/messages.rb'
+		'lib/rand_text_core/messages.rb',
+		'lib/rand_text_core/data_types.rb',
+		'lib/rand_text_core/data_types/integer_type',
+		'lib/rand_text_core/data_types/identifier',
+		'lib/rand_text_core/data_types/weight',
+		'lib/rand_text_core/data_types/reference',
+		'lib/rand_text_core/data_types/string_attribute',
+		'lib/rand_text_core/data_types/enum'
 	]
 	s.summary		= 'Core for writing random text generators in Ruby.'
 	s.description	= 'RandTextCore provides classes to create a random text
