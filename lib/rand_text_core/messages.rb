@@ -19,12 +19,19 @@ class RandTextCore::Message
 	# @return [RuleVariant, nil] concerned rule variant (or +nil+ if none)
 	attr_reader :rule_variant
 
+	# @return [Symbol, nil] concerned attribute (or +nil+ if none)
+	attr_reader :attribute
+
 	# Creates a message.
 	# @param [#to_str] message message
 	# @param [Class] rule concerned rule
 	# @param [RuleVariant] rule_variant concerned variant of the rule
-	def initialize(message, rule = nil, rule_variant = nil)
-		@message, @rule, @rule_variant = message.to_str, rule, rule_variant
+	# @param [Symbol] attribute concerned attribute
+	def initialize(message, rule = nil, rule_variant = nil, attribute = nil)
+		@message = message.to_str
+		@rule = rule
+		@rule_variant = rule_variant
+		@attribute = attribute
 	end
 
 	# Returns the message, with its level, concerned rule and variant.
@@ -34,7 +41,12 @@ class RandTextCore::Message
 			if self.rule
 				"Rule #{self.rule.rule_name} (#{self.rule.file})#{
 					if self.rule_variant
-						", variant #{self.rule_variant.inspect}: "
+						", variant #{self.rule_variant.inspect}"
+					else
+						""
+					end
+					if self.attribute
+						", attribute \"#{self.attribute}\": "
 					else
 						": "
 					end
@@ -43,6 +55,21 @@ class RandTextCore::Message
 				""
 			end
 		}#{self.level}: #{self.message}"
+	end
+
+end
+
+# Class for message of warning level.
+#
+# @author AlexieVQ
+class RandTextCore::WarningMessage < RandTextCore::Message
+
+	public_class_method :new
+
+	# @see Message#initialize
+	def initialize(*args)
+		@level = 'WARNING'
+		super(*args)
 	end
 
 end
