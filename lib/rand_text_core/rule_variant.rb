@@ -27,24 +27,107 @@ class RandTextCore::RuleVariant
 
 		alias :to_s :inspect
 
+		# Inspect given value.
+		# @param [String] value value to inspect
+		# @return [String] inspected value
+		def inspect_value(value)
+			value.inspect
+		end
+
+		# Verify itself for anomalies.
+		# @param [SymbolTable] symbol_table symbol table used
+		# @param [Class, nil] rule rule caling this method
+		# @param [Symbol, nil] attribute concerned attribute
+		# @return [Array<Message>] generated messages
+		def verify_self(symbol_table, rule = nil, attribute = nil)
+			[]
+		end
+
+		# Verify given value for anomalies.
+		# @param [String] value value to verify
+		# @param [SymbolTable] symbol_table symbol table used
+		# @param [Class, nil] rule rule calling this method
+		# @param [RuleVariant, nil] variant variant calling this method
+		# @param [Symbol, nil] attribute concerned attribute
+		# @return [Array<Message>] generated messages
+		def verify(value,
+		           symbol_table,
+		           messages,
+		           rule = nil,
+		           variant = nil,
+		           attribute = nil)
+			if value == nil
+				[RandTextCore::ErrorMessage.new(
+					"attribute not defined",
+					rule,
+					variant,
+					attribute
+				)]
+			else
+				[]
+			end
+		end
+
 		# Converts given value into expected type (default, keep it as a
 		# String).
-		# @param [#to_str] value value to convert
+		# @param [String] value value to convert, considered valid in regard of
+		#  {AttributeType#verify}
+		# @param [SymbolTable] symbol_table symbol table used
 		# @return [Object] converted value
-		# @raise [TypeError] no implicit conversion of value into String
-		# @raise [ArgumentError] invalid value
-		def convert(value)
-			begin
-				value.to_str.freeze
-			rescue NoMethodError
-				raise TypeError,
-					"no implicit conversion of #{value.class} into String"
-			end
+		def convert(value, symbol_table)
+			value
 		end
 	end
 
+	# Super type for types storing integer values.
+	class IntegerType < AttributeType
+
+		# Inspect given value.
+		# @param [String] value value to inspect
+		# @return [String] inspected value
+		def inspect_value(value)
+			value.to_i.inspect
+		end
+
+		# Verify is given value does represent a valid integer.
+		# @param [String] value value to verify
+		# @param [SymbolTable] symbol_table symbol table used
+		# @param [Array<Message>] messages message list
+		# @param [Class, nil] rule rule calling this method
+		# @param [RuleVariant, nil] variant variant calling this method
+		# @param [Symbol, nil] attribute concerned attribute
+		# @return [Array<Message>] generated messages
+		def verify(value,
+				   symbol_table,
+				   rule = nil,
+				   variant = nil,
+				   attribute = nil)
+			messages = super(value, symbol_table, rule, variant, attribute)
+			unless value.match?(/\A\s*\d+\s*\z/)
+				messages << RandTextCore::WarningMessage.new(
+					"\"#{value}\" is confusing for an integer (#{value.to_i} " +
+						"infered)",
+					rule,
+					variant,
+					attribute
+				)
+			end
+			messages
+		end
+
+		# Converts given value into Integer.
+		# @param [String] value value to convert, considered valid in regard of
+		#  {AttributeType#verify}
+		# @param [SymbolTable] symbol_table symbol table used
+		# @return [Integer] converted value
+		def convert(value, symbol_table)
+			value.to_i
+		end
+
+	end
+
 	# Type for the 'id' attribute.
-	class Identifier < AttributeType
+	class Identifier < IntegerType
 		# Returns an instance representing the Identifier type.
 		# @return [Identifier] instance representing the type
 		def self.type
@@ -52,43 +135,43 @@ class RandTextCore::RuleVariant
 			@instance
 		end
 
-		# Converts given value into Integer.
-		# @param [#to_str] value value to convert
-		# @return [Integer] converted value
-		# @raise [TypeError] no implicit conversion of value into String
-		# @raise [ArgumentError] value does not represent a non-null integer
-		def convert(value)
-			int = super(value).to_i
-			if int == 0
-				raise ArgumentError,
-					"wrong value for an id (expected non-null integer, given " +
-					value.inspect
+		# Verify is given value does represent a valid id.
+		# @param [String] value value to verify
+		# @param [SymbolTable] symbol_table symbol table used
+		# @param [Class, nil] rule rule calling this method
+		# @param [RuleVariant, nil] variant variant calling this method
+		# @param [Symbol, nil] attribute concerned attribute
+		# @return [Array<Message>] generated messages
+		def verify(value,
+		           symbol_table,
+		           rule = nil,
+		           variant = nil,
+		           attribute = nil)
+			messages = super(value, symbol_table, rule, variant, attribute)
+			if value.to_i == 0
+				messages << RandTextCore::ErrorMessage.new(
+					"id cannot be null",
+					rule,
+					variant,
+					attribute
+				)
 			end
-			int
+			messages
 		end
 	end
 
 	# Type for the 'weight' attribute.
-	class Weight < AttributeType
+	class Weight < IntegerType
 		# Returns an instance representing the Weight type.
 		# @returns [Weight] instance representing the type
 		def self.type
 			@instance ||= self.new
 			@instance
 		end
-		
-		# Converts given value into Integer.
-		# @param [#to_str] value value to convert
-		# @return [Integer] converted value
-		# @raise [TypeError] no implicit conversion of value into String
-		# @raise [ArgumentError] no implicit conversion of +value+ into String
-		def convert(value)
-			super(value).to_i
-		end
 	end
 
 	# Type for an attribute referencing another rule.
-	class Reference < AttributeType
+	class Reference < IntegerType
 		# @see Reference#initialize
 		def self.[](target, type)
 			self.new(target, type)
@@ -121,22 +204,6 @@ class RandTextCore::RuleVariant
 			@type = type
 		end
 
-		# Converts given value into an Integer.
-		# Does not test if the variant of the target rule exists.
-		# @param [#to_str] value value to convert
-		# @return [Integer] converted value
-		# @raise [TypeError] no implicit conversion of value into String
-		# @raise [ArgumentError] null value for a required reference
-		def convert(value)
-			int = super(value).to_i
-			if type == :required && int == 0
-				raise ArgumentError,
-					"wrong value for a required reference (expected non-null " +
-					"integer, given #{value.inspect})"
-			end
-			int
-		end
-
 		# Testing if another object is a Reference type referencing the same
 		# rule with the same type of requirement.
 		# @param [Object] o the object to compare
@@ -157,7 +224,75 @@ class RandTextCore::RuleVariant
 			super + "<#{target}, #{type}>"
 		end
 
-		alias :to_s :inspect
+		alias :to_s :inspect     
+
+		# Inspect given value.
+		# @param [String] value value to inspect
+		# @return [String] inspected value
+		def inspect_value(value)
+			"#{self.target}[#{value.to_i}]"
+		end
+
+		# Verify itself for anomalies.
+		# @param [SymbolTable] symbol_table symbol table used
+		# @param [Class, nil] rule rule caling this method
+		# @param [Symbol, nil] attribute concerned attribute
+		# @return [Array<Message>] generated messages
+		def verify_self(symbol_table, rule = nil, attribute = nil)
+			unless symbol_table.has_rule?(self.target)
+				[RandTextCore::ErrorMessage.new(
+					"no rule named #{self.target}",
+					rule,
+					nil,
+					attribute
+				)]
+			else
+				[]
+			end
+		end
+
+		# Verifies is given value does represent a valid reference to target.
+		# @param [String] value value to verify
+		# @param [SymbolTable] symbol_table symbol table used
+		# @param [Array<Message>] messages message list
+		# @param [Class, nil] rule rule calling this method
+		# @param [RuleVariant, nil] variant variant calling this method
+		# @param [Symbol, nil] attribute concerned attribute
+		# @return [Array<Message>] generated messages
+		def verify(value,
+		           symbol_table,
+		           rule = nil,
+		           variant = nil,
+		           attribute = nil)
+			messages = super(value, symbol_table, rule, variant, attribute)
+			if self.type == :required && value.to_i == 0
+				messages << RandTextCore::ErrorMessage.new(
+					"required reference to rule #{self.target} cannot be null",
+					rule,
+					variant,
+					attribute
+				)
+			elsif value.to_i != 0 &&
+				symbol_table.has_rule?(self.target) &&
+				!symbol_table.rule(self.target)[value.to_i]
+				messages << RandTextCore::ErrorMessage.new(
+					"no variant of id #{value.to_i} in rule #{self.target}",
+					rule,
+					variant,
+					attribute
+				)
+			end
+			messages
+		end
+
+		# Returns referenced rule variant, or +nil+ for a null reference.
+		# @param [String] value value to convert, considered valid in regard of
+		#  {AttributeType#verify}
+		# @param [SymbolTable] symbol_table symbol table used
+		# @return [RuleVariant] referenced rule variant
+		def convert(value, symbol_table)
+			symbol_table.rule(self.target)[value.to_i]
+		end
 	end
 
 	# Type for an attribute with string values.
@@ -195,22 +330,6 @@ class RandTextCore::RuleVariant
 			end.uniq.sort.freeze
 		end
 
-		# Converts given value into expected Symbol.
-		# @param [#to_str] value value to convert
-		# @return [Symbol] converted value
-		# @raise [TypeError] no implicit conversion of value into String
-		# @raise [ArgumentError] non-accepted value
-		def convert(value)
-			str = super(value)
-			unless values.any? { |accepted| accepted.id2name == str }
-				raise ArgumentError,
-					"wrong value for the enum type (expected #{values.map do |v|
-						v.id2name.inspect
-					end.join(', ')}, given #{value}"
-			end
-			str.to_sym
-		end
-
 		# Testing if another object is an Enum type with the same set of values.
 		# @param [Object] o the object to compare
 		# @return [true, false] +true+ if +o+ is an Enum type with the same set
@@ -227,6 +346,48 @@ class RandTextCore::RuleVariant
 		end
 
 		alias :to_s :inspect
+
+		# Inspect given value.
+		# @param [String] value value to inspect
+		# @return [String] inspected value
+		def inspect_value(value)
+			":#{value}"
+		end
+
+		# Verifies that given value is accepted.
+		# @param [String] value value to verify
+		# @param [SymbolTable] symbol_table symbol table used
+		# @param [Class, nil] rule rule calling this method
+		# @param [RuleVariant, nil] variant variant calling this method
+		# @param [Symbol, nil] attribute concerned attribute
+		# @return [Array<Message>] generated messages
+		def verify(value,
+		           symbol_table,
+		           rule = nil,
+		           variant = nil,
+				   attribute = nil)
+			messages = super(value, symbol_table, rule, variant, attribute)
+			unless self.values.any? { |v| v.id2name == value }
+				messages << RandTextCore::ErrorMessage.new(
+					"invalid value \"#{value}\" (expected " +
+						"#{self.values.map { |v| v.id2name }.join(', ')})",
+					rule,
+					variant,
+					attribute
+				)
+			end
+			messages
+		end
+
+		# Converts given value into expected type (default, keep it as a
+		# String).
+		# @param [String] value value to convert, considered valid in regard of
+		#  {AttributeType#verify}
+		# @param [SymbolTable] symbol_table symbol table used
+		# @return [Object] converted value
+		def convert(value, symbol_table)
+			value.to_sym
+		end
 	end
 
 	###########################
@@ -455,26 +616,16 @@ class RandTextCore::RuleVariant
 				@attr_types[attribute] = Identifier.type
 			elsif attribute == :weight
 				@attr_types[attribute] = Weight.type
-				define_method(:default_weight) { @attributes[:weight] }
-			elsif @attr_types[attribute].kind_of?(Reference)
-				sym = "default_#{attribute}".to_sym
-				target = @attr_types[attribute].target
-				define_method(sym) do
-					id = @attributes[attribute]
-					if id == 0
-						nil
-					else
-						self.symbol_table.rule(target)[@attributes[attribute]]
-					end
-				end
-				private(sym)
-				unless method_defined?(attribute)
-					define_method(attribute) { self.send(sym) }
+				define_method(:default_weight) do
+					Weight.type.convert(@attributes[:weight], self.symbol_table)
 				end
 			else
 				@attr_types[attribute] ||= StringAttribute.type
+				type = @attr_types[attribute]
 				sym = "default_#{attribute}"
-				define_method(sym) { @attributes[attribute] }
+				define_method(sym) do
+					type.convert(@attributes[attribute], self.symbol_table)
+				end
 				private(sym)
 				unless method_defined?(attribute)
 					define_method(attribute) { self.send(sym) }
@@ -513,7 +664,7 @@ class RandTextCore::RuleVariant
 			raise ArgumentError, "wrong number of arguments in tuple #{row} " +
 				"(given #{row.size}, expected #{@attr_types.size})"
 		end
-		entity = new(row, @attr_types)
+		entity = new(row)
 		if @variants[entity.id]
 			raise "id #{entity.id} duplicated in rule #{self.rule_name}"
 		end
@@ -548,8 +699,8 @@ class RandTextCore::RuleVariant
 			else
 				begin
 					self.add_entity(row)
-				rescue ArgumentError => e
-					raise e.message
+#				rescue ArgumentError => e
+#					raise e.message
 				end
 			end
 		end
@@ -567,16 +718,33 @@ class RandTextCore::RuleVariant
 		@initialized || false
 	end
 
+	# Verifies the rule, i.e. searches for and lists anomalies in the variants.
+	# @return [Array<Message>] generated messages
+	# @raise [RuntimeError] called on RuleVariant, or class not initialized
+	def self.verify
+		messages = []
+		self.attr_types.each do |attribute, type|
+			messages += type.verify_self(
+				self.symbol_table,
+				self,
+				attribute
+			)
+		end
+		self.each { |variant| messages += variant.send(:verify) }
+		messages
+	end
+	private_class_method :verify
+
 	# Returns variant of given id.
 	# @param [#to_int] id id of the variant 
-	# @return [RuleVariant] variant of given id
-	# @raise [KeyError] no variant of given id has been found
+	# @return [RuleVariant, nil] variant of given id, or +nil+ if no variant
+	#  has been found
 	# @raise [TypeError] no implicit conversion of +id+ into Integer
 	# @raise [RuntimeError] called on RuleVariant or class not initialized
 	def self.[](id)
 		self.require_initialized_rule
 		begin
-			@variants.fetch(id.to_int)
+			@variants[id.to_int]
 		rescue NoMethodError
 			raise TypeError,
 				"no implicit conversion of #{id.class} into Integer"
@@ -707,33 +875,21 @@ class RandTextCore::RuleVariant
 	# @param [Hash{Symbol => AttributeType}] types hash map associating
 	#  attribute names to their types
 	# @raise [ArgumentError] invalid row
-	def initialize(row, types)
+	def initialize(row)
 		@attributes = {}
 		row.headers.each do |attribute|
-			begin
-				@attributes[attribute] =
-					types[attribute].convert(row[attribute])
-			rescue => e
-				msg = if @attributes[:id]
-					"variant #{@attributes[:id]}, "
-				else
-					""
-				end + "attribute #{attribute}: #{e.message}"
-				raise ArgumentError, msg
-			end
+			@attributes[attribute] = row[attribute]
 		end
 		@attributes.freeze
 		init
 	end
-
-	# alias :rule :class
 
 	# Returns the variant's id.
 	# @note It is strongly recommended to not override this method, as the
 	#  +id+ attribute must always return the id as it is in the table.
 	# @return [Integer] variant's id, as in the CSV file
 	def id
-		@attributes[:id]
+		Identifier.type.convert(@attributes[:id], nil)
 	end
 
 	# Returns the variant's weight.
@@ -788,13 +944,27 @@ class RandTextCore::RuleVariant
 	#  MyRule[1].inspect	#=> '#<MyRule id=1, value="aaa", weight=10>'
 	def inspect
 		"#<#{self.class.rule_name} #{@attributes.map do |k, v|
-			"#{k}=#{v.inspect}"
+			"#{k}=#{self.rule.attr_types[k].inspect_value(v)}"
 		end.join(', ')}>"
 	end
 
 	alias :to_s :inspect
 
 	private
+
+	# Verifies the variant, i.e. searches for and lists anomalies.
+	# @return [Array<Message>] generated messages
+	def verify
+		@attributes.keys.inject([]) do |messages, attribute|
+			messages + self.rule.attr_types[attribute].verify(
+				@attributes[attribute],
+				self.symbol_table,
+				self.rule,
+				self,
+				attribute
+			)
+		end
+	end
 
 	# Returns current state of the variant (instance variables).
 	def current_state
