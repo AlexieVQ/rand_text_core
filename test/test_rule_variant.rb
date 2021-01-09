@@ -141,25 +141,31 @@ class TestRuleVariant < Test::Unit::TestCase
 	def test_attribute_type_convert
 		assert_equal(
 			38,
-			RandTextCore::RuleVariant::Identifier.type.convert('38 ')
+			RandTextCore::RuleVariant::Identifier.type.convert(
+				'38 ',
+				@symbol_table
+			)
 		)
 		assert_equal(
 			5,
-			RandTextCore::RuleVariant::Weight.type.convert(' 5')
+			RandTextCore::RuleVariant::Weight.type.convert(
+				' 5',
+				@symbol_table
+			)
 		)
-		assert_equal(
-			0,
+		@simple_rule.send(:init_rule, @symbol_table)
+		assert_nil(
 			RandTextCore::RuleVariant::Reference[
-				:my_rule,
+				:SimpleRule,
 				:optional
-			].convert('0')
+			].convert('0', @symbol_table)
 		)
 		assert_equal(
-			5,
+			@simple_rule[3],
 			RandTextCore::RuleVariant::Reference[
-				:my_rule,
+				:SimpleRule,
 				:required
-			].convert('5')
+			].convert('3', @symbol_table)
 		)
 		assert_equal(
 			:value2,
@@ -167,34 +173,15 @@ class TestRuleVariant < Test::Unit::TestCase
 				:value1,
 				:value2,
 				:value3
-			].convert('value2')
+			].convert('value2', @symbol_table)
 		)
 		assert_equal(
 			'my string',
-			RandTextCore::RuleVariant::StringAttribute.type.convert('my string')
+			RandTextCore::RuleVariant::StringAttribute.type.convert(
+				'my string',
+				@symbol_table
+			)
 		)
-	end
-
-	def test_attribute_type_invalid_convert
-		assert_raise(ArgumentError) do
-			RandTextCore::RuleVariant::Identifier.type.convert('0')
-		end
-		assert_raise(ArgumentError) do
-			RandTextCore::RuleVariant::Reference[
-				:my_rule,
-				:required
-			].convert('0')
-		end
-		assert_raise(ArgumentError) do
-			RandTextCore::RuleVariant::Enum[
-				:value1,
-				:value2,
-				:value3
-			].convert('value4')
-		end
-		assert_raise(TypeError) do
-			RandTextCore::RuleVariant::StringAttribute.type.convert(83)
-		end
 	end
 
 	def test_attribute_type_equal
@@ -668,52 +655,6 @@ class TestRuleVariant < Test::Unit::TestCase
 		end
 		assert_raise do
 			identical_attributes.send(
-				:init_rule,
-				RandTextCore::SymbolTable.new({}, [])
-			)
-		end
-	end
-
-	def test_null_id
-		null_id = Class.new(RandTextCore::RuleVariant) do
-			self.file = INVALID_DIR + 'null_id.csv'
-		end
-		assert_raise(RuntimeError) do
-			null_id.send(:init_rule, RandTextCore::SymbolTable.new({}, []))
-		end
-	end
-
-	def test_too_few_fields
-		too_few_fields = Class.new(RandTextCore::RuleVariant) do
-			self.file = INVALID_DIR + 'too_few_fields.csv'
-		end
-		assert_raise(RuntimeError) do
-			too_few_fields.send(
-				:init_rule,
-				RandTextCore::SymbolTable.new({}, [])
-			)
-		end
-	end
-
-	def test_too_much_fields
-		too_much_fields = Class.new(RandTextCore::RuleVariant) do
-			self.file = INVALID_DIR + 'too_much_fields.csv'
-		end
-		assert_raise(RuntimeError) do
-			too_much_fields.send(
-				:init_rule,
-				RandTextCore::SymbolTable.new({}, [])
-			)
-		end
-	end
-
-	def test_invalid_enum_value
-		invalid_enum_value = Class.new(RandTextCore::RuleVariant) do
-			self.file = INVALID_DIR + 'invalid_enum_value.csv'
-			enum :enum_attr, :value1, :value2, :value3
-		end
-		assert_raise(RuntimeError) do
-			invalid_enum_value.send(
 				:init_rule,
 				RandTextCore::SymbolTable.new({}, [])
 			)
