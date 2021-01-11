@@ -5,7 +5,7 @@ require_relative '../lib/rand_text_core/symbol_exception'
 
 class TestSymbolTable < Test::Unit::TestCase
 
-	TEST_DIR = 'test/dir1/'
+	TEST_DIR = 'test/valid_dir1/'
 
 	def setup
 		@rules = {
@@ -19,17 +19,17 @@ class TestSymbolTable < Test::Unit::TestCase
 			WeightedRule: Class.new(RandTextCore::RuleVariant) do
 				self.file = TEST_DIR + 'weighted_rule.csv'
 			end,
-			RequiredReferences: Class.new(RandTextCore::RuleVariant) do
-				self.file = TEST_DIR + 'required_references.csv'
-				reference :simple_rule, :SimpleRule, :required
+			RequiredReference: Class.new(RandTextCore::RuleVariant) do
+				self.file = TEST_DIR + 'required_reference.csv'
+				reference :variant_ref, :SimpleRule, :required
 			end,
-			OptionalReferences: Class.new(RandTextCore::RuleVariant) do
-				self.file = TEST_DIR + 'optional_references.csv'
-				reference :simple_rule, :SimpleRule, :optional
+			OptionalReference: Class.new(RandTextCore::RuleVariant) do
+				self.file = TEST_DIR + 'optional_reference.csv'
+				reference :variant_ref, :SimpleRule, :optional
 			end,
-			EnumAttribute: Class.new(RandTextCore::RuleVariant) do
-				self.file = TEST_DIR + 'enum_attribute.csv'
-				enum :enum_attr, :value1, :value2, :value3
+			SimpleEnum: Class.new(RandTextCore::RuleVariant) do
+				self.file = TEST_DIR + 'simple_enum.csv'
+				enum :value, :value1, :value2, :value3
 			end
 		}
 		@symbol_table = RandTextCore::SymbolTable.new(
@@ -101,16 +101,16 @@ class TestSymbolTable < Test::Unit::TestCase
 		assert_same(@rules[:SimpleRule], @symbol_table.rule(:SimpleRule))
 		assert_same(@rules[:WeightedRule], @symbol_table.rule(:WeightedRule))
 		assert_same(
-			@rules[:OptionalReferences],
-			@symbol_table.rule(:OptionalReferences)
+			@rules[:OptionalReference],
+			@symbol_table.rule(:OptionalReference)
 		)
 		assert_same(
-			@rules[:RequiredReferences],
-			@symbol_table.rule(:RequiredReferences)
+			@rules[:RequiredReference],
+			@symbol_table.rule(:RequiredReference)
 		)
 		assert_same(
-			@rules[:EnumAttribute],
-			@symbol_table.rule(:EnumAttribute)
+			@rules[:SimpleEnum],
+			@symbol_table.rule(:SimpleEnum)
 		)
 	end
 
