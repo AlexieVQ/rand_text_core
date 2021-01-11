@@ -1,9 +1,4 @@
-#!/usr/bin/env ruby
-
-require 'simplecov'
-SimpleCov.start
-
-require 'test/unit'
+require_relative 'test_helper'
 require_relative '../lib/rand_text_core/symbol_table'
 require_relative '../lib/rand_text_core/rule_variant'
 require_relative '../lib/rand_text_core/symbol_exception'

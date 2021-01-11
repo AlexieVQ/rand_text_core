@@ -1,9 +1,4 @@
-#!/usr/bin/env ruby
-
-require 'simplecov'
-SimpleCov.start
-
-require 'test/unit'
+require_relative 'test_helper'
 require_relative '../lib/rand_text_core'
 
 class TestRandTextCore < Test::Unit::TestCase
