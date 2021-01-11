@@ -1,0 +1,5 @@
+id,value,ref
+1,"ref to 3",3
+2,"ref to 2",2
+3,"null ref",
+4,"ref to 3",3
