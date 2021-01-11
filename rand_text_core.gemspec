@@ -29,7 +29,6 @@ Gem::Specification.new do |s|
 	}
 	s.test_files	= [
 		'test/test_rand_text_core.rb',
-		'test/test_rule_variant.rb',
 		'test/test_refinements.rb',
 		'test/test_symbol_table.rb'
 	]
