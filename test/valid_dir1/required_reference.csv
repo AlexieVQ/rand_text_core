@@ -1,0 +1,5 @@
+id,value,variant_ref
+1,"required reference 1, to variant 3",3
+2,"required reference 2, to variant 2",2
+3,"required reference 3, to variant 2",2
+4,"required reference 4, to variant 1",1

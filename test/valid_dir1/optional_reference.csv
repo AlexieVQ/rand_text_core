@@ -1,0 +1,5 @@
+id,value,variant_ref
+1,"optional reference 1, to variant 3",3
+2,"optional reference 2, to variant 1",1
+3,"optional reference 3, to nothing",
+4,"optional reference 4, to variant 1",1
