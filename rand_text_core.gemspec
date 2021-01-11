@@ -12,12 +12,12 @@ Gem::Specification.new do |s|
 		'lib/rand_text_core/symbol_exception.rb',
 		'lib/rand_text_core/messages.rb',
 		'lib/rand_text_core/data_types.rb',
-		'lib/rand_text_core/data_types/integer_type',
-		'lib/rand_text_core/data_types/identifier',
-		'lib/rand_text_core/data_types/weight',
-		'lib/rand_text_core/data_types/reference',
-		'lib/rand_text_core/data_types/string_attribute',
-		'lib/rand_text_core/data_types/enum'
+		'lib/rand_text_core/data_types/integer_type.rb',
+		'lib/rand_text_core/data_types/identifier.rb',
+		'lib/rand_text_core/data_types/weight.rb',
+		'lib/rand_text_core/data_types/reference.rb',
+		'lib/rand_text_core/data_types/string_attribute.rb',
+		'lib/rand_text_core/data_types/enum.rb'
 	]
 	s.summary		= 'Core for writing random text generators in Ruby.'
 	s.description	= 'RandTextCore provides classes to create a random text
@@ -33,4 +33,6 @@ Gem::Specification.new do |s|
 		'test/test_refinements.rb',
 		'test/test_symbol_table.rb'
 	]
+	s.add_runtime_dependency 'csv', '~> 3.1'
+	s.add_development_dependency 'simplecov', '~> 0.21'
 end
