@@ -4,21 +4,23 @@ require_relative '../lib/rand_text_core'
 class TestRandTextCore < Test::Unit::TestCase
 
 	FILES = [
-		'optional_references.csv',
-		'required_references.csv',
 		'simple_rule.csv',
-		'weighted_rule.csv'
+		'weighted_rule.csv',
+		'simple_enum.csv',
+		'multiple_enum.csv',
+		'optional_reference.csv',
+		'required_reference.csv',
 	]
 
 	def test_files_no_slash
-		path = 'test/dir1'
+		path = 'test/valid_dir1'
 		files = FILES.map { |f| path + '/' + f }.sort
 		core = RandTextCore.new(path)
 		assert_equal(files, core.files.sort)
 	end
 
 	def test_files_slash
-		path = 'test/dir1/'
+		path = 'test/valid_dir1/'
 		files = FILES.map { |f| path + f }.sort
 		core = RandTextCore.new(path)
 		assert_equal(files, core.files.sort)
