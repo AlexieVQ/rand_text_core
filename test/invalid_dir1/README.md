@@ -18,6 +18,8 @@ This directory contains rules with basic mistakes, one per rule:
 - `malformed_mult_enum` has a multiple enum attribute accepting above values,
   with a wrong separator,
 - `null_reference` has a null required reference,
-- `invalid_reference` has a reference to a non-existing variant.
+- `invalid_reference` has a reference to a non-existing variant,
+- `invalid name` has a name in with a space,
+- `invalid_attr_name` has an attribute with an invalid name.
 
 This directory also has a valid rule `simple_rule` targeted by the references.
