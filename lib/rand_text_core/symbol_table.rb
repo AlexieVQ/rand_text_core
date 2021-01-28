@@ -8,6 +8,10 @@ require_relative 'symbol_exception'
 # @author AlexieVQ
 class RandTextCore::SymbolTable
 
+	# @ rules [Set<Class>]
+	# @ rule_variants [Hash{Symbol => Hash{Integer => RuleVariant}}]
+	# @ variables [Hash{Symbol => Object}]
+
 	# @return [Hash{Symbol => Proc}] hash map storing functions used in the
 	#  expansion language (frozen)
 	attr_reader :functions
@@ -54,7 +58,7 @@ class RandTextCore::SymbolTable
 				"wrong type for second argument (Enumerable<Class> expected, " +
 				"#{rules.class} given)"
 		end
-		@rules = []
+		@rules = Set[]
 		rules.each_with_index do |rule, i|
 			unless rule.kind_of?(Class)
 				raise TypeError,
@@ -69,6 +73,42 @@ class RandTextCore::SymbolTable
 			@rules << rule
 		end
 		self.clear
+	end
+
+	# Copy constructor.
+	# When {SymbolTable#clone} or {SymbolTable#dup} is called, what happened:
+	# - the rule classes and the functions referenced in the new table are the
+	#   same as in the original,
+	# - the rule variants are copies or the ones of the original table,
+	# - the variables referencing rule variants references theses copies,
+	# - variables of other types are clones of their values in the original
+	#   table, but if many variables store the same object (according to
+	#   {BasicObject#equal?}) in the original table, the same variable in the
+	#   copied table reference the same copy of the object from the original
+	#   table.
+	def initialize_copy(orig)
+		@rules = orig.instance_variable_get(:rules).dup
+		@functions = orig.instance_variable_get(:functions).dup.freeze
+		rule_variants = orig.instance_variable_get(:rule_variants)
+		@rule_variants = rule_variants.keys.each_with_object({}) do |rule, hash|
+			hash[rule] = rule_variants[rule].keys.
+				each_with_object({}) do |id, hash|
+				hash[id] = rule_variants[rule][id].clone
+			end
+		end
+		variables = orig.instance_variable_get(:variables)
+		@variables = variables.keys.each_with_object({}) do |var, hash|
+			same_var = variables.keys.find do |var2|
+				variables[var2].equal?(variables[var]) && hash.key?(var2)
+			end
+			if variables[var].kind_of?(RuleVariant)
+				hash[var] = @rule_variants[var.rule_name][var.id]
+			elsif same_var
+				hash[var] = hash[same_var]
+			else
+				hash[var] = variables[var].clone
+			end
+		end
 	end
 
 	# Tests if variable of given name exists in the table.
@@ -153,6 +193,62 @@ class RandTextCore::SymbolTable
 				"no implicit conversion of #{id.class} into Integer"
 		end
 		@rule_variants.key?(rule) && @rule_variants[rule].key?(id)
+	end
+
+	# Get rule variant of given id
+	# @param [#to_sym] rule name of the rule
+	# @param [#to_int] id id of the variant
+	# @return [RuleVariant, nil] variant of the rule of given id, or +nil+ if
+	#  the rule has no variant of given id
+	# @raise [TypeError] wrong argument types
+	# @raise [NameError] no rule of given name
+	def rule_variant(rule, id)
+		begin
+			rule = rule.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{rule.class} into Symbol"
+		end
+		begin
+			id = id.to_int
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{id.class} into Integer"
+		end
+		@rule_variants.fetch(rule) do |rule|
+			raise NameError, "no rule named #{rule} in the system"
+		end[id]
+	end
+
+	# Pick a variant of rule of given name randomly, using a weighted random
+	# choice.
+	# The pickable variants are definad by {RuleVariant#pick?} using given
+	# arguments.
+	# @param [#to_sym] rule name of the rule
+	# @param [Array<String>] args arguments (never empty when called from an
+	#  expansion node, if no arguments are explecitly given, an empty string is
+	#  given by default; can be empty if called from ruby code)
+	# @return [RuleVariant, nil] a randomly chosen variant, or +nil+ if no
+	#  variant satisfies the arguments
+	# @raise [TypeError] invalid argument types
+	# @raise [NameError] no rule of given name
+	def pick_variant(rule, *args)
+		begin
+			rule = rule.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{rule.class} into Symbol"
+		end
+		args.each_with_index do |arg, i|
+			unless arg.kind_of?(String)
+				raise TypeError,
+					"invalid type for #{i+2}th argument (expected String, " +
+					"given #{arg.class})"
+			end
+		end
+		@rule_variants.fetch(rule) do |rule|
+			raise NameError, "no rule name #{rule} in the system"
+		end.select { |variant| variant.pick?(*args) }.pick
 	end
 
 	# Call function of given name with given arguments.
