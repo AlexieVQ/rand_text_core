@@ -12,10 +12,6 @@ class RandTextCore::SymbolTable
 	#  expansion language (frozen)
 	attr_reader :functions
 
-	# @return [Hash{Symbol => Class}] hash map associating names of the rules to
-	#  the rules (frozen)
-	attr_reader :rules
-
 	# Creates a new symbol table.
 	# @param [Hash{#to_sym => #to_proc}] functions hash map storing functions
 	#  used in the expansion language (must be lambdas)
@@ -58,6 +54,7 @@ class RandTextCore::SymbolTable
 				"wrong type for second argument (Enumerable<Class> expected, " +
 				"#{rules.class} given)"
 		end
+		@rules = []
 		rules.each_with_index do |rule, i|
 			unless rule.kind_of?(Class)
 				raise TypeError,
@@ -69,29 +66,17 @@ class RandTextCore::SymbolTable
 					"class of index #{i} in second argument is not a subclass" +
 					" of RandTextCore::RuleVariant"
 			end
+			@rules << rule
 		end
-		@rules = rules.each_with_object({}) do |rule, hash|
-			if hash[rule.rule_name]
-				raise "two rules with the same name #{rule.rule_name.inspect}"
-			end
-			hash[rule.rule_name] = rule
-		end.freeze
 		self.clear
 	end
 
-	# Returns stored variables (not rules and functions).
-	# Modifications on the returned hash map has no consequences on the table.
-	# @return [Hash{Symbol => Object}] hash map associating variables names to
-	#  the values they store
-	def variables
-		@variables.clone
-	end
-
 	# Tests if variable of given name exists in the table.
+	# @param [#to_sym] name name of the variable
 	# @return [true, false] +true+ if variable of given name exists, +false+
 	#  otherwise
 	# @raise [TypeError] no implicit conversion of name into Symbol
-	def has?(name)
+	def variable?(name)
 		begin
 			@variables.key?(name.to_sym)
 		rescue NoMethodError
@@ -105,7 +90,7 @@ class RandTextCore::SymbolTable
 	# @return [Object, nil] value stored, or +nil+ if there is no variable of
 	#  given name
 	# @raise [TypeError] no implicit conversion of name into Symbol
-	def [](name)
+	def variable(name)
 		begin
 			@variables[name.to_sym]
 		rescue NoMethodError
@@ -113,6 +98,8 @@ class RandTextCore::SymbolTable
 				"no implicit conversion of #{name.class} into Symbol"
 		end
 	end
+
+	alias :[] :variable
 
 	# Returns stored value into variable of given name.
 	# Difference with {SymbolTable#[]} is that this method raises a
@@ -122,7 +109,7 @@ class RandTextCore::SymbolTable
 	#  name
 	# @raise [TypeError] no implicit conversion of name into Symbol
 	# @raise [SymbolException] no variable of given name
-	def fetch(name)
+	def fetch_variable(name)
 		unless self.has?(name)
 			raise RandTextCore::SymbolException,
 				"symbol #{name} does not exist in the table"
@@ -130,19 +117,42 @@ class RandTextCore::SymbolTable
 		self[name]
 	end
 
-	# Returns rule of given name.
-	# @param [#to_sym] name variable name
-	# @return [Class] rule of given name
+	alias :fetch :fetch_variable
+	
+	# Tests if rule of given name exists in the system.
+	# @param [#to_sym] name name of the rule
+	# @return [true, false] +true+ if rule of given name exists, +false+
+	#  otherwise
 	# @raise [TypeError] no implicit conversion of name into Symbol
-	# @raise [KeyError] no variable of given name
-	def rule(name)
+	def rule?(name)
 		begin
-			name = name.to_sym
+			@rule_variants.key?(name.to_sym)
 		rescue NoMethodError
 			raise TypeError,
 				"no implicit conversion of #{name.class} into Symbol"
 		end
-		@rules.fetch(name)
+	end
+
+	# Tests if variant of given id exists in the rule.
+	# @param [#to_sym] rule name of the rule
+	# @param [#to_int] id id of the variant
+	# @return [true, false] +true+ if variant of given name id, +false+
+	#  otherwise
+	# @raise [TypeError] wrong argument types
+	def rule_variant?(rule, id)
+		begin
+			rule = rule.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{rule.class} into Symbol"
+		end
+		begin
+			id = id.to_int
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{id.class} into Integer"
+		end
+		@rule_variants.key?(rule) && @rule_variants[rule].key?(id)
 	end
 
 	# Call function of given name with given arguments.
@@ -191,34 +201,12 @@ class RandTextCore::SymbolTable
 		@variables[name] = value
 	end
 
-	# Clear variables and send {RuleVariant#reset} to all rules.
+	# Clear variables and rule variants.
 	# @return [self]
 	def clear
 		@variables = {}
-		@rules.each_value { |rule| rule.reset if rule.initialized? }
-		self
-	end
-
-	private
-
-	# Creates a snapshot of the current state of the table, i.e. the current
-	# state of its symbols and its rules.
-	def current_state
-		hash = { variables: {}, rules: {} }
-		@variables.keys.each_with_object(hash[:variables]) do |symbol, hash|
-			hash[symbol] = @variables[symbol].clone
-		end
-		@rules.keys.each_with_object(hash[:rules]) do |name, hash|
-			hash[name] = @rules[name].send(:current_state)
-		end
-		hash
-	end
-
-	# Restore the table's state from given snapshot.
-	def restore(state)
-		@variables = state[:variables].clone
-		state[:rules].each do |name, state|
-			@rules[name].send(:restore, state)
+		@rule_variants = @rules.each_with_object({}) do |rule, hash|
+			hash[rule.rule_name] = rule.variants
 		end
 		self
 	end
