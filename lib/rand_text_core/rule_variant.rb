@@ -5,12 +5,6 @@ require_relative 'data_types'
 
 # A variant of a rule is a tuple from a CSV file.
 #
-# A class extending RuleVariant represents a rule, i.e. a CSV table, and all its
-# instances are variants of this rule.
-#
-# A subclass of RuleVariant is an Enumerable object, i.e. all its instances can
-# be accessed through Enumerable's methods on the class.
-#
 # @author AlexieVQ
 class RandTextCore::RuleVariant
 
@@ -109,6 +103,44 @@ class RandTextCore::RuleVariant
 		@file = path.freeze
 	end
 
+	# Set type for given attribute.
+	# @param [#to_sym] attribute name of the attribute to type
+	# @param [DataType] type type of the attribute
+	# @return [DataType] set type
+	# @raise [TypeError] wrong argument type
+	# @raise [NameError] attribute type already set
+	# @raise [RuntimeError] called on RuleVariant, or rule already initialized
+	def self.data_type(attribute, type)
+		if self == RandTextCore::RuleVariant
+			raise "cannot set data type for class RuleVariant"
+		end
+		if self.initialized?
+			raise "cannot set data type for already initialized rule"
+		end
+		begin
+			attribute = attribute.to_sym
+		rescue NoMethodError
+			raise TypeError,
+				"no implicit conversion of #{attribute.class} into Symbol"
+		end
+		unless type.kind_of?(RandTextCore::DateTypes::DataType)
+			raise TypeError,
+				"wrong type for second argument (expected DataType, given " +
+				"#{type.class})"
+		end
+		if [:id, :weight].include?(attribute)
+			raise NameError,
+				"cannot set type for reserved attribute #{attribute}"
+		end
+		if @attr_types[attribute]
+			raise NameError,
+				"type already set for attribute #{attribute}"
+		end
+		@attr_types ||= {}
+		@attr_types[attribute] = type
+		type
+	end
+
 	# Declares that given attribute is a reference to rule +rule_name+'s id.
 	# @param [#to_sym] attribute attribute from current rule (must only contain
 	#  non-zero integers)
@@ -117,35 +149,14 @@ class RandTextCore::RuleVariant
 	# @param [:required, :optional] type +:required+ for a required reference,
 	#  +:optional+ for an optional one
 	# @return [nil]
-	# @raise [TypeError] no implicit conversion for arguments into Symbol
-	# @raise [ArgumentError] wrong argument for +type+ or reserved attribute
-	#  (+id+ or +weight+)
-	# @raise [RuntimeError] called on RuleVariant or type already set for
-	#  +attribute+
+	# @raise [TypeError] wrong argument type
+	# @raise [NameError] attribute type already set, or wrong type
+	# @raise [RuntimeError] called on RuleVariant, or rule already initialized
 	def self.reference(attribute, rule_name, type = :required)
-		if self == RandTextCore::RuleVariant
-			raise "cannot set reference for class RuleVariant"
-		end
-		if self.initialized?
-			raise "rule #{self.rule_name} has already been initialized"
-		end
-		@attr_types ||= {}
-		begin
-			attribute = attribute.to_sym
-		rescue NoMethodError
-			raise TypeError,
-				"no implicit conversion of #{attribute.class} into Symbol"
-		end
-		if [:id, :weight].include?(attribute)
-			raise ArgumentError, "attribute #{attribute} cannot be a reference"
-		end
-		if @attr_types[attribute]
-			raise "type already set for attribute #{attribute}"
-		end
-		@attr_types[attribute] = RandTextCore::DataTypes::Reference[
+		self.data_type(attribute, RandTextCore::DataTypes::Reference[
 			rule_name,
 			type
-		]
+		])
 		nil
 	end
 
@@ -154,31 +165,11 @@ class RandTextCore::RuleVariant
 	# @param [#to_sym] attribute attribute in question
 	# @param [Array<#to_sym>] values accepted values
 	# @return [nil]
-	# @raise [TypeError] no implicit conversion for arguments into Symbol
-	# @raise [ArgumentError] reserved attribute (+id+ or +weight+)
-	# @raise [RuntimeError] called on RuleVariant, or type already set for
-	#  +attribute+
+	# @raise [TypeError] wrong argument type
+	# @raise [NameError] attribute type already set
+	# @raise [RuntimeError] called on RuleVariant, or rule already initialized
 	def self.enum(attribute, *values)
-		if self == RandTextCore::RuleVariant
-			raise "cannot set enum attribute for class RuleVariant"
-		end
-		if self.initialized?
-			raise "rule #{self.rule_name} has already been initialized"
-		end
-		@attr_types ||= {}
-		begin
-			attribute = attribute.to_sym
-		rescue NoMethodError
-			raise TypeError,
-				"no implicit conversion of #{attribute.class} into Symbol"
-		end
-		if [:id, :weight].include?(attribute)
-			raise ArgumentError, "attribute #{attribute} cannot be an enum"
-		end
-		if @attr_types[attribute]
-			raise "type already set for attribute #{attribute}"
-		end
-		@attr_types[attribute] = RandTextCore::DataTypes::Enum[*values]
+		self.data_type(attribute, RandTextCore::DataTypes::Enum[*values])
 		nil
 	end
 
@@ -298,11 +289,10 @@ class RandTextCore::RuleVariant
 			raise ArgumentError, "wrong number of arguments in tuple #{row} " +
 				"(given #{row.size}, expected #{@attr_types.size})"
 		end
-		entity = new(row)
-		if @variants[entity.id]
-			raise "id #{entity.id} duplicated in rule #{self.rule_name}"
+		variant = new(row)
+		unless @variants.add?(variant)
+			raise "id #{variant.id} duplicated in rule #{self.rule_name}"
 		end
-		@variants[entity.id] = entity
 		self
 	end
 	private_class_method :add_entity
@@ -315,7 +305,7 @@ class RandTextCore::RuleVariant
 	# @raise [RuntimeError] wrong number of fields in the row, or error in a row
 	def self.init_rule(symbol_table)
 		@symbol_table = symbol_table
-		@variants = {}
+		@variants = Set[]
 		CSV.read(
 			self.file,
 			nil_value: '',
@@ -369,38 +359,6 @@ class RandTextCore::RuleVariant
 	end
 	private_class_method :verify
 
-	# Returns variant of given id.
-	# @param [#to_int] id id of the variant 
-	# @return [RuleVariant, nil] variant of given id, or +nil+ if no variant
-	#  has been found
-	# @raise [TypeError] no implicit conversion of +id+ into Integer
-	# @raise [RuntimeError] called on RuleVariant or class not initialized
-	def self.[](id)
-		self.require_initialized_rule
-		begin
-			@variants[id.to_int]
-		rescue NoMethodError
-			raise TypeError,
-				"no implicit conversion of #{id.class} into Integer"
-		end
-	end
-
-	# Executes given block for each variant of the rule.
-	# If no block is given, return an enumerator on the variants of the rule.
-	# @yield [variant] block to execute on each variant
-	# @return [Enumerator<RuleVariant>, self] +self+ if a block is given, or an
-	#  enumerator on the variants of the rule
-	# @raise [RuntimeError] called on RuleVariant or class not initialized
-	def self.each
-		self.require_initialized_rule
-		if block_given?
-			@variants.values.each { |variant| yield variant }
-			self
-		else
-			@variants.values.to_enum
-		end
-	end
-
 	# Decides whether a given variant must be picked in a random picking
 	# according to given arguments.
 	# Returns true for all variants by default.
@@ -414,22 +372,6 @@ class RandTextCore::RuleVariant
 		true
 	end
 
-	# Pick a variant of the rule randomly, using a weighted random choice.
-	# The pickable variants are definad by {RuleVariant#pick?} using given
-	# arguments.
-	# @param [Array<String>] args arguments (never empty when called from an
-	#  expansion node, if no arguments are explecitly given, an empty string is
-	#  given by default; can be empty if called from ruby code)
-	# @return [RuleVariant, nil] a randomly chosen variant, or +nil+ if no
-	#  variant satisfies the arguments
-	def self.pick(*args)
-		ary = self.select { |variant| self.pick?(variant, *args) }
-		class << ary
-			include Enumerable
-		end
-		ary.pick
-	end
-
 	# Returns the number of variants of the rule.
 	# @returns [Integer] number of variants of the rule
 	# @raise [RuntimeError] called on RuleVariant, or class not initialized
@@ -438,40 +380,16 @@ class RandTextCore::RuleVariant
 		return @variants.size
 	end
 
-	# Returns the symbol table of this core.
-	# @return [SymbolTable] symbol table used by the core
-	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
-	def self.symbol_table
+	# Returns a map associating variants' ids to their value.
+	# The RuleVariant objects returned are newly-initalized objects.
+	# @return [Hash{Integer => RuleVariant}] variants stored by id
+	# @raise [RuntimeError] called on RuleVariant, or class not initialized
+	def self.variants
 		self.require_initialized_rule
-		@symbol_table
-	end
-
-	# Calls {RuleVariant#init} on each variant.
-	# @return [self]
-	# @raise [RuntimeError] called on RuleVariant, or rule not initialized
-	def self.reset
-		self.require_initialized_rule
-		@variants.each_value { |variant| variant.init }
-		self
-	end
-
-	# Creates a snapshot of the current state of the rule, i.e. the current
-	# state of its variants' instance variables.
-	def self.current_state
-		@variants.keys.each_with_object({}) do |id, hash|
-			hash[id] = @variants[id].send(:current_state)
+		@variants.each_with_object({}) do |variant, hash|
+			hash[variant.id] = variant.dup
 		end
 	end
-	private_class_method :current_state
-
-	# Restore the rule's state.
-	def self.restore(state)
-		state.each do |id, state|
-			@variants[id].send(:restore, state)
-		end
-		self
-	end
-	private_class_method :restore
 	
 	# Raises RuntimeError if current class is RuleVariant, or if the rule is
 	# not initiaziled.
@@ -488,8 +406,6 @@ class RandTextCore::RuleVariant
 	private_class_method :new
 
 	class << self
-		include Enumerable
-
 		alias :length :size
 	end
 
@@ -497,9 +413,8 @@ class RandTextCore::RuleVariant
 	# INSTANCE METHODS FOR VARIANT #
 	################################
 
-	# @ attributes	=> [Hash{Symbol=>Integer, String}] hash map associating
-	#                  attribute names to their value: String for strings and
-	#                  Integer for id, reference and weight
+	# @ attributes	=> [Hash{Symbol=>Object}] hash map associating attribute
+	#                  names to their value
 
 	# Creates a new variant from given row.
 	# @note It is strongly recommended to not override this method. If you want
@@ -538,12 +453,6 @@ class RandTextCore::RuleVariant
 		self.default_weight
 	end
 
-	# Returns the symbol table for this core.
-	# @return [SymbolTable] symbol table of the core
-	def symbol_table
-		self.rule.symbol_table
-	end
-
 	alias :rule :class
 
 	# Override this method to add a specific behaviour when initializing the
@@ -552,13 +461,27 @@ class RandTextCore::RuleVariant
 	def init
 	end
 
-	# Returns itself, as variants cannot be cloned.
-	# @return [self]
-	def clone
-		self
+	# Tests if two objects are variants of the same rule (even if they are
+	# different instances of this variant).
+	# @param [Object] o object to compare
+	# @return [true, false] +true+ if +o+ is a variant of the same rule, +false+
+	#  otherwise
+	def ==(o)
+		self.class == o.class && self.id == o.id
 	end
 
-	alias :dup :clone
+	alias :eql? :==
+
+	# Returns a hash code of the variant.
+	# Different instances of the same variant return the same code.
+	# @return [Integer] hash code
+	def hash
+		hash = 45
+		f = 32
+		hash = hash * f + self.class.hash
+		hash = hash * f + self.id.hash
+		hash
+	end
 
 	# Returns a human-readable representation of the variant, listing its
 	# attributes.
@@ -598,26 +521,6 @@ class RandTextCore::RuleVariant
 				attribute
 			)
 		end
-	end
-
-	# Returns current state of the variant (instance variables).
-	def current_state
-		self.instance_variables.each_with_object({}) do |symbol, hash|
-			hash[symbol] = self.instance_variable_get(symbol)
-		end
-	end
-
-	# Restore a previous state of the variant.
-	def restore(state)
-		state.each do |symbol, value|
-			self.instance_variable_set(symbol, value)
-		end
-		self.instance_variables.each do |symbol|
-			unless state.key?(symbol)
-				self.remove_instance_variable(symbol)
-			end
-		end
-		self
 	end
 
 end
