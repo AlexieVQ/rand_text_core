@@ -123,7 +123,7 @@ class RandTextCore::RuleVariant
 			raise TypeError,
 				"no implicit conversion of #{attribute.class} into Symbol"
 		end
-		unless type.kind_of?(RandTextCore::DateTypes::DataType)
+		unless type.kind_of?(RandTextCore::DataTypes::DataType)
 			raise TypeError,
 				"wrong type for second argument (expected DataType, given " +
 				"#{type.class})"
@@ -132,11 +132,11 @@ class RandTextCore::RuleVariant
 			raise NameError,
 				"cannot set type for reserved attribute #{attribute}"
 		end
+		@attr_types ||= {}
 		if @attr_types[attribute]
 			raise NameError,
 				"type already set for attribute #{attribute}"
 		end
-		@attr_types ||= {}
 		@attr_types[attribute] = type
 		type
 	end
@@ -300,11 +300,9 @@ class RandTextCore::RuleVariant
 	# Import entities from CSV file, then freeze the class.
 	# The class is now considered initialized in regard of
 	# {RuleVariant#initialized?}.
-	# @return [SymbolTable] symbol table associated to the core
 	# @return [self]
 	# @raise [RuntimeError] wrong number of fields in the row, or error in a row
-	def self.init_rule(symbol_table)
-		@symbol_table = symbol_table
+	def self.init_rule
 		@variants = Set[]
 		CSV.read(
 			self.file,
