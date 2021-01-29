@@ -70,7 +70,9 @@ class RandTextCore::SymbolTable
 					"class of index #{i} in second argument is not a subclass" +
 					" of RandTextCore::RuleVariant"
 			end
-			@rules << rule
+			unless @rules.add?(rule)
+				raise "duplicated rule #{rule.rule_name}"
+			end
 		end
 		self.clear
 	end
@@ -150,7 +152,7 @@ class RandTextCore::SymbolTable
 	# @raise [TypeError] no implicit conversion of name into Symbol
 	# @raise [SymbolException] no variable of given name
 	def fetch_variable(name)
-		unless self.has?(name)
+		unless self.variable?(name)
 			raise RandTextCore::SymbolException,
 				"symbol #{name} does not exist in the table"
 		end
@@ -158,6 +160,15 @@ class RandTextCore::SymbolTable
 	end
 
 	alias :fetch :fetch_variable
+
+	# Returns the number of variables stored in the table.
+	# Does not count rules and functions.
+	# @return [Integer] numbre of variables stored in the table
+	def size
+		@variables.size
+	end
+
+	alias :length :size
 	
 	# Tests if rule of given name exists in the system.
 	# @param [#to_sym] name name of the rule
