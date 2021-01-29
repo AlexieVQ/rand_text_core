@@ -32,6 +32,7 @@ class TestSymbolTable < Test::Unit::TestCase
 				enum :value, :value1, :value2, :value3
 			end
 		}
+		@rules.each_value { |rule| rule.send(:init_rule) }
 		@symbol_table = RandTextCore::SymbolTable.new(
 			{
 				ret_arg: ->(arg, table) do
@@ -41,7 +42,7 @@ class TestSymbolTable < Test::Unit::TestCase
 					n1.to_i + n2.to_i
 				end,
 				exists: ->(arg, table) do
-					table.has?(arg.to_sym)
+					table.variable?(arg.to_sym)
 				end,
 				join: ->(*args, table) do
 					args.join(' ')
@@ -49,34 +50,34 @@ class TestSymbolTable < Test::Unit::TestCase
 			},
 			@rules.values
 		)
-		@rules.each_value do |rule|
-			rule.send(:init_rule, @symbol_table)
-		end
 		@symbol_table.tap do |t|
 			t[:var1] = "string 1"
 			t[:var2] = 2
-			t[:var3] = @rules[:SimpleRule][3]
+			t[:var3] = t.rule_variant(:SimpleRule, 3)
 		end
 	end
 
 	def test_variables
-		assert_equal(3, @symbol_table.variables.length)
+		assert_equal(3, @symbol_table.length)
 	end
 
-	def test_has
-		assert_true(@symbol_table.has? :var1)
-		assert_true(@symbol_table.has? :var2)
-		assert_false(@symbol_table.has? :var4)
+	def test_variable?
+		assert_true(@symbol_table.variable? :var1)
+		assert_true(@symbol_table.variable? :var2)
+		assert_false(@symbol_table.variable? :var4)
 	end
 
-	def test_invalid_has
-		assert_raise(TypeError) { @symbol_table.has? 2 }
+	def test_invalid_variable?
+		assert_raise(TypeError) { @symbol_table.variable? 2 }
 	end
 
 	def test_get
 		assert_equal("string 1", @symbol_table[:var1])
 		assert_equal(2, @symbol_table[:var2])
-		assert_equal(@rules[:SimpleRule][3], @symbol_table[:var3])
+		assert_equal(
+			@symbol_table.rule_variant(:SimpleRule, 3),
+			@symbol_table[:var3]
+		)
 		assert_nil(@symbol_table[:var4])
 	end
 
@@ -87,7 +88,10 @@ class TestSymbolTable < Test::Unit::TestCase
 	def test_fetch
 		assert_equal("string 1", @symbol_table.fetch(:var1))
 		assert_equal(2, @symbol_table.fetch(:var2))
-		assert_equal(@rules[:SimpleRule][3], @symbol_table.fetch(:var3))
+		assert_equal(
+			@symbol_table.rule_variant(:SimpleRule, 3),
+			@symbol_table.fetch(:var3)
+		)
 		assert_raise(RandTextCore::SymbolException) do
 			@symbol_table.fetch(:var4)
 		end
@@ -95,28 +99,6 @@ class TestSymbolTable < Test::Unit::TestCase
 
 	def test_invalid_fetch
 		assert_raise(TypeError) { @symbol_table[3] }
-	end
-
-	def test_rule
-		assert_same(@rules[:SimpleRule], @symbol_table.rule(:SimpleRule))
-		assert_same(@rules[:WeightedRule], @symbol_table.rule(:WeightedRule))
-		assert_same(
-			@rules[:OptionalReference],
-			@symbol_table.rule(:OptionalReference)
-		)
-		assert_same(
-			@rules[:RequiredReference],
-			@symbol_table.rule(:RequiredReference)
-		)
-		assert_same(
-			@rules[:SimpleEnum],
-			@symbol_table.rule(:SimpleEnum)
-		)
-	end
-
-	def test_invalid_rule
-		assert_raise(TypeError) { @symbol_table.rule(3) }
-		assert_raise(KeyError) { @symbol_table.rule(:bad_rule) }
 	end
 
 	def test_call
@@ -149,20 +131,7 @@ class TestSymbolTable < Test::Unit::TestCase
 
 	def test_clear
 		@symbol_table.clear
-		assert_equal(0, @symbol_table.variables.length)
-	end
-
-	def test_snapshot
-		@rules[:SimpleRule][1].my_var = 3
-		@symbol_table[:my_variant] = @rules[:SimpleRule][1]
-		snapshot = @symbol_table.send(:current_state)
-		@rules[:SimpleRule][1].my_var = 7
-		assert_equal(7, @symbol_table.rule(:SimpleRule)[1].my_var)
-		assert_equal(7, @symbol_table[:my_variant].my_var)
-		@symbol_table.send(:restore, snapshot)
-		assert_equal(3, @rules[:SimpleRule][1].my_var)
-		assert_equal(3, @symbol_table[:my_variant].my_var)
-		assert_same(@rules[:SimpleRule][1], @symbol_table[:my_variant])
+		assert_equal(0, @symbol_table.size)
 	end
 
 	def test_invalid_initialize
