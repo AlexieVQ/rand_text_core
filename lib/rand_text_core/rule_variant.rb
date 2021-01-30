@@ -357,19 +357,6 @@ class RandTextCore::RuleVariant
 	end
 	private_class_method :verify
 
-	# Decides whether a given variant must be picked in a random picking
-	# according to given arguments.
-	# Returns true for all variants by default.
-	# @param [RuleVariant] variant variant to test
-	# @param [Array<String>] args arguments (never empty when called from an
-	#  expansion node, if no arguments are explecitly given, an empty string is
-	#  given by default; can be empty if called from ruby code)
-	# @return [true, false] +true+ if the variant must be picked, +false+
-	#  otherwise
-	def self.pick?(variant, *args)
-		true
-	end
-
 	# Returns the number of variants of the rule.
 	# @returns [Integer] number of variants of the rule
 	# @raise [RuntimeError] called on RuleVariant, or class not initialized
@@ -380,12 +367,26 @@ class RandTextCore::RuleVariant
 
 	# Returns a map associating variants' ids to their value.
 	# The RuleVariant objects returned are newly-initalized objects.
+	# @param [SymbolTable, nil] symbol_table symbol table where these variants
+	#  are stored
 	# @return [Hash{Integer => RuleVariant}] variants stored by id
+	# @raise [TypeError] wrong type of arguments
 	# @raise [RuntimeError] called on RuleVariant, or class not initialized
-	def self.variants
+	def self.variants(symbol_table = nil)
 		self.require_initialized_rule
 		@variants.each_with_object({}) do |variant, hash|
 			hash[variant.id] = variant.dup
+			if symbol_table
+				unless symbol_table.kind_of?(RandTextCore::SymbolTable)
+					raise TypeError,
+						"wrong type of argument (SymbolTable expected, " +
+						"#{symbol_table.class} given)"
+				end
+				hash[variant.id].instance_variable_set(
+					:@symbol_table,
+					symbol_table
+				)
+			end
 		end
 	end
 	
@@ -410,6 +411,9 @@ class RandTextCore::RuleVariant
 	################################
 	# INSTANCE METHODS FOR VARIANT #
 	################################
+
+	# @return [SymbolTable] Symbol table where the variant is stored
+	attr_reader :symbol_table
 
 	# @ attributes	=> [Hash{Symbol=>Object}] hash map associating attribute
 	#                  names to their value
@@ -457,6 +461,18 @@ class RandTextCore::RuleVariant
 	# variant or resetting the symbol table.
 	# Does nothing by default.
 	def init
+	end
+
+	# Decides whether the variant must be picked in a random picking according
+	# to given arguments.
+	# Returns +true+ by default.
+	# @param [Array<String>] args arguments (never empty when called from an
+	#  expansion node, if no arguments are explecitly given, an empty string is
+	#  given by default; can be empty if called from ruby code)
+	# @return [true, false] +true+ if the variant must be picked, +false+
+	#  otherwise
+	def pick?(*args)
+		true
 	end
 
 	# Tests if two objects are variants of the same rule (even if they are
