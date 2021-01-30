@@ -79,16 +79,15 @@ class RandTextCore::SymbolTable
 	end
 
 	# Copy constructor.
-	# When {SymbolTable#clone} or {SymbolTable#dup} is called, what happened:
+	# When +clone+ or +dup+ is called, what happened:
 	# - the rule classes and the functions referenced in the new table are the
 	#   same as in the original,
 	# - the rule variants are copies or the ones of the original table,
 	# - the variables referencing rule variants references theses copies,
 	# - variables of other types are clones of their values in the original
 	#   table, but if many variables store the same object (according to
-	#   {BasicObject#equal?}) in the original table, the same variable in the
-	#   copied table reference the same copy of the object from the original
-	#   table.
+	#   +equal?+) in the original table, the same variable in the copied table
+	#   reference the same copy of the object from the original table.
 	def initialize_copy(orig)
 		@rules = orig.instance_variable_get(:@rules).dup
 		@functions = orig.instance_variable_get(:@functions).dup.freeze

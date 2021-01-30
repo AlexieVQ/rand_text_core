@@ -358,7 +358,7 @@ class RandTextCore::RuleVariant
 	private_class_method :verify
 
 	# Returns the number of variants of the rule.
-	# @returns [Integer] number of variants of the rule
+	# @return [Integer] number of variants of the rule
 	# @raise [RuntimeError] called on RuleVariant, or class not initialized
 	def self.size
 		self.require_initialized_rule
@@ -423,8 +423,6 @@ class RandTextCore::RuleVariant
 	#  to add a special behaviour at initialization, override
 	#  {RuleVariant#init}.
 	# @param [CSV::Row] row row from the CSV file.
-	# @param [Hash{Symbol => DataType}] types hash map associating
-	#  attribute names to their types
 	# @raise [ArgumentError] invalid row
 	def initialize(row)
 		@attributes = {}
