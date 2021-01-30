@@ -1,12 +1,15 @@
 require_relative '../rand_text_core.rb'
 require_relative 'rule_variant'
 require_relative 'symbol_exception'
+require_relative 'refinements'
 
 # Object storing all used variants during a text generation, all defined methods
 # for the generator and all rules.
 #
 # @author AlexieVQ
 class RandTextCore::SymbolTable
+
+	using RandTextCore::Refinements
 
 	# @ rules [Set<Class>]
 	# @ rule_variants [Hash{Symbol => Hash{Integer => RuleVariant}}]
@@ -21,8 +24,6 @@ class RandTextCore::SymbolTable
 	#  used in the expansion language (must be lambdas)
 	# @param [Enumerable<Class>] rules set of rules
 	# @raise [TypeError] wrong type of parameters
-	# @raise [ArgumentError] function not a lambda, or class not a subclass of
-	#  RuleVariant
 	# @raise [RuntimeError] rules with the same name
 	def initialize(functions, rules)
 		unless functions.kind_of?(Hash)
@@ -48,7 +49,7 @@ class RandTextCore::SymbolTable
 					"(Proc expected, #{pair[1].class} given)"
 			end
 			unless function.lambda?
-				raise ArgumentError,
+				raise TypeError,
 					"function #{symbol} is not a lambda"
 			end
 			hash[symbol] = function
@@ -66,7 +67,7 @@ class RandTextCore::SymbolTable
 					"(Class espected, #{rule.class} given"
 			end
 			unless rule.ancestors.include?(RandTextCore::RuleVariant)
-				raise ArgumentError,
+				raise TypeError,
 					"class of index #{i} in second argument is not a subclass" +
 					" of RandTextCore::RuleVariant"
 			end
@@ -89,22 +90,25 @@ class RandTextCore::SymbolTable
 	#   copied table reference the same copy of the object from the original
 	#   table.
 	def initialize_copy(orig)
-		@rules = orig.instance_variable_get(:rules).dup
-		@functions = orig.instance_variable_get(:functions).dup.freeze
-		rule_variants = orig.instance_variable_get(:rule_variants)
+		@rules = orig.instance_variable_get(:@rules).dup
+		@functions = orig.instance_variable_get(:@functions).dup.freeze
+		rule_variants = orig.instance_variable_get(:@rule_variants)
 		@rule_variants = rule_variants.keys.each_with_object({}) do |rule, hash|
 			hash[rule] = rule_variants[rule].keys.
 				each_with_object({}) do |id, hash|
 				hash[id] = rule_variants[rule][id].clone
+				hash[id].instance_variable_set(:@symbol_table, self)
 			end
 		end
-		variables = orig.instance_variable_get(:variables)
+		variables = orig.instance_variable_get(:@variables)
 		@variables = variables.keys.each_with_object({}) do |var, hash|
 			same_var = variables.keys.find do |var2|
 				variables[var2].equal?(variables[var]) && hash.key?(var2)
 			end
-			if variables[var].kind_of?(RuleVariant)
-				hash[var] = @rule_variants[var.rule_name][var.id]
+			if variables[var].kind_of?(RandTextCore::RuleVariant)
+				hash[var] = @rule_variants[
+					variables[var].rule.rule_name
+				][variables[var].id]
 			elsif same_var
 				hash[var] = hash[same_var]
 			else
@@ -212,7 +216,6 @@ class RandTextCore::SymbolTable
 	# @return [RuleVariant, nil] variant of the rule of given id, or +nil+ if
 	#  the rule has no variant of given id
 	# @raise [TypeError] wrong argument types
-	# @raise [NameError] no rule of given name
 	def rule_variant(rule, id)
 		begin
 			rule = rule.to_sym
@@ -226,9 +229,7 @@ class RandTextCore::SymbolTable
 			raise TypeError,
 				"no implicit conversion of #{id.class} into Integer"
 		end
-		@rule_variants.fetch(rule) do |rule|
-			raise NameError, "no rule named #{rule} in the system"
-		end[id]
+		@rule_variants.fetch(rule) { |rule|	return nil }[id]
 	end
 
 	# Pick a variant of rule of given name randomly, using a weighted random
@@ -242,7 +243,6 @@ class RandTextCore::SymbolTable
 	# @return [RuleVariant, nil] a randomly chosen variant, or +nil+ if no
 	#  variant satisfies the arguments
 	# @raise [TypeError] invalid argument types
-	# @raise [NameError] no rule of given name
 	def pick_variant(rule, *args)
 		begin
 			rule = rule.to_sym
@@ -258,8 +258,10 @@ class RandTextCore::SymbolTable
 			end
 		end
 		@rule_variants.fetch(rule) do |rule|
-			raise NameError, "no rule name #{rule} in the system"
-		end.select { |variant| variant.pick?(*args) }.pick
+			return nil
+		end.values.select do |variant|
+			variant.pick?(*args)
+		end.pick
 	end
 
 	# Call function of given name with given arguments.
@@ -313,7 +315,7 @@ class RandTextCore::SymbolTable
 	def clear
 		@variables = {}
 		@rule_variants = @rules.each_with_object({}) do |rule, hash|
-			hash[rule.rule_name] = rule.variants
+			hash[rule.rule_name] = rule.variants(self)
 		end
 		self
 	end
