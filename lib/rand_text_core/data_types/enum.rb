@@ -32,7 +32,7 @@ class RandTextCore::DataTypes::Enum < RandTextCore::DataTypes::DataType
 	# @return [true, false] +true+ if +o+ is an Enum type with the same set
 	#  of referenced values, +false+ otherwise
 	def ==(o)
-		o.kind_of?(Enum) && o.values == self.values
+		o.kind_of?(RandTextCore::DataTypes::Enum) && o.values == self.values
 	end
 
 	# Returns a string in the format +"Enum<:value1, :value2, :value3>"+.
