@@ -46,7 +46,7 @@ class RandTextCore::DataTypes::Reference < RandTextCore::DataTypes::IntegerType
 	# @return [true, false] +true+ if +o+ is a Reference type referencing
 	#  the same rule with the same type of requirement, +false+ otherwise
 	def ==(o)
-		o.kind_of?(Reference) &&
+		o.kind_of?(RandTextCore::DataTypes::Reference) &&
 			o.target == self.target &&
 			o.type == self.type
 	end
