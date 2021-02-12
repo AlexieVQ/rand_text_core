@@ -1,4 +1,5 @@
 require_relative '../data_types'
+require_relative '../messages'
 
 # Super type for types storing integer values.
 #
