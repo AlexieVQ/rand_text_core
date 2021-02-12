@@ -75,7 +75,7 @@ class RandTextCore::DataTypes::Reference < RandTextCore::DataTypes::IntegerType
 	# @param [Symbol, nil] attribute concerned attribute
 	# @return [Array<Message>] generated messages
 	def verify_self(symbol_table, rule = nil, attribute = nil)
-		unless symbol_table.has_rule?(self.target)
+		unless symbol_table.rule?(self.target)
 			[RandTextCore::ErrorMessage.new(
 				"no rule named #{self.target}",
 				rule,
@@ -109,8 +109,8 @@ class RandTextCore::DataTypes::Reference < RandTextCore::DataTypes::IntegerType
 				attribute
 			)
 		elsif value.to_i != 0 &&
-			symbol_table.has_rule?(self.target) &&
-			!symbol_table.rule(self.target)[value.to_i]
+			symbol_table.rule?(self.target) &&
+			!symbol_table.rule_variant(self.target, value.to_i)
 			messages << RandTextCore::ErrorMessage.new(
 				"no variant of id #{value.to_i} in rule #{self.target}",
 				rule,
@@ -127,7 +127,7 @@ class RandTextCore::DataTypes::Reference < RandTextCore::DataTypes::IntegerType
 	# @param [SymbolTable] symbol_table symbol table used
 	# @return [RuleVariant] referenced rule variant
 	def convert(value, symbol_table)
-		symbol_table.rule(self.target)[value.to_i]
+		symbol_table.rule_variant(self.target, value.to_i)
 	end
 	
 end
