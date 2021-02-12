@@ -6,6 +6,8 @@ require_relative 'integer_type'
 # @author AlexieVQ
 class RandTextCore::DataTypes::Reference < RandTextCore::DataTypes::IntegerType
 
+	public_class_method :new
+
 	# @see Reference#initialize
 	def self.[](target, type)
 		self.new(target, type)
