@@ -264,7 +264,6 @@ class RandTextCore::RuleVariant
 			define_method(:default_weight) { 1 }
 		end
 		private(:default_weight)
-		@attr_types.freeze
 		nil
 	end
 	private_class_method :headers=
@@ -326,6 +325,10 @@ class RandTextCore::RuleVariant
 				end
 			end
 		end
+		unless @attr_types[:weight]
+			@attr_types[:weight] = RandTextCore::DataTypes::Weight.type
+		end
+		@attr_types.freeze
 		@initialized = true
 		@relations.freeze
 		self
