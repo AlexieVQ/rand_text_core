@@ -236,6 +236,7 @@ class RandTextCore::RuleVariant
 				@attr_types[attribute] =
 					RandTextCore::DataTypes::Identifier.type
 			elsif attribute == :weight
+				@attr_types[attribute] = RandTextCore::DataTypes::Weight.type
 				define_method(:default_weight) do
 					RandTextCore::DataTypes::Weight.type.convert(
 						@attributes[:weight],
@@ -262,7 +263,6 @@ class RandTextCore::RuleVariant
 		unless @attr_types[:weight]
 			define_method(:default_weight) { 1 }
 		end
-		@attr_types[attribute] = RandTextCore::DataTypes::Weight.type
 		private(:default_weight)
 		@attr_types.freeze
 		nil
