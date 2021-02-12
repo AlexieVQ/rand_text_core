@@ -27,7 +27,7 @@ class RandTextCore::DataTypes::IntegerType < RandTextCore::DataTypes::DataType
 			   variant = nil,
 			   attribute = nil)
 		messages = super(value, symbol_table, rule, variant, attribute)
-		unless value.match?(/\A\s*\d+\s*\z/)
+		unless value.match?(/\A\s*\d*\s*\z/)
 			messages << RandTextCore::WarningMessage.new(
 				"\"#{value}\" is confusing for an integer (#{value.to_i} " +
 					"infered)",
