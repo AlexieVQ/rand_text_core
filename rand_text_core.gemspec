@@ -30,7 +30,8 @@ Gem::Specification.new do |s|
 	s.test_files	= [
 		'test/test_rand_text_core.rb',
 		'test/test_refinements.rb',
-		'test/test_symbol_table.rb'
+		'test/test_symbol_table.rb',
+		'test/test_rule_variant.rb'
 	]
 	s.add_runtime_dependency 'csv', '~> 3.1'
 	s.add_development_dependency 'simplecov', '~> 0.21'
