@@ -344,18 +344,21 @@ class RandTextCore::RuleVariant
 	end
 
 	# Verifies the rule, i.e. searches for and lists anomalies in the variants.
+	# @param [SymbolTable] symbol_table symbot table of the system
 	# @return [Array<Message>] generated messages
 	# @raise [RuntimeError] called on RuleVariant, or class not initialized
-	def self.verify
+	def self.verify(symbol_table)
 		messages = []
 		self.attr_types.each do |attribute, type|
 			messages += type.verify_self(
-				self.symbol_table,
+				symbol_table,
 				self,
 				attribute
 			)
 		end
-		self.each { |variant| messages += variant.send(:verify) }
+		self.variants(symbol_table).each_value do |variant|
+			messages += variant.send(:verify)
+		end
 		messages
 	end
 	private_class_method :verify
